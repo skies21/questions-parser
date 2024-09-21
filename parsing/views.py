@@ -72,7 +72,7 @@ def parse(request):
 
         questions = soup.find_all('div', class_='qblock')
         for question in questions:
-            question_id = question.get('id')
+            question_id = question.get('id')[1:]
             p_elements = question.find_all('p', class_='MsoNormal')
             question_text = []
             img_urls = []
