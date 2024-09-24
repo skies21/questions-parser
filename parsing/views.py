@@ -88,34 +88,39 @@ def parse(request):
             img_paths = []
             img_urls = []
 
-            p_elements = question.find_all('p', class_='MsoNormal')
+            p_elements = question.find_all('p')
             for p in p_elements:
-                p_html = clean_m_tags(p)
-                if p.get('class') == ['MsoNormal']:
-                    p_html = ''.join([str(child) for child in p.children])
+                if 'MsoNormal' in p.get('class', []) or 'Basis' in p.get('class', []):
+                    p_html = str(clean_m_tags(p))
+                    if p.get('class') == 'MsoNormal' or 'Basis':
+                        p_html = ''.join([str(child) for child in p.children])
 
-                problem_html += p_html
+                    problem_html += p_html
 
-                img_tag = p.find('img')
-                if img_tag and img_tag.get('src'):
-                    img_file_path = f"task_{task_number:0>2}/{question_id}/{img_number}.gif"
-                    img_paths.append(img_file_path)
-                    img_url = f"https://ege.fipi.ru/{img_tag['src']}"
-                    img_urls.append(img_url)
-                    img_tag['src'] = img_file_path
-                    problem_html += f'<img src="{img_file_path}" />'
-                    img_number += 1
-
-                script = p.find('script')
-                if script and "ShowPictureQ" in script.string:
-                    img_match = re.search(r"ShowPictureQ\(['\"](.*?)['\"]", script.string)
-                    if img_match:
-                        img_url = f"https://ege.fipi.ru/{img_match.group(1)}"
-                        img_urls.append(img_url)
+                    img_tag = p.find('img')
+                    if img_tag and img_tag.get('src'):
                         img_file_path = f"task_{task_number:0>2}/{question_id}/{img_number}.gif"
                         img_paths.append(img_file_path)
-                        problem_html += f'<img src="{img_file_path}" />'
+                        img_url = f"https://ege.fipi.ru/{img_tag['src']}"
+                        img_urls.append(img_url)
+                        img_tag['src'] = img_file_path
                         img_number += 1
+
+                script_tags = p.find_all('script')
+                for script in script_tags:
+                    if "ShowPictureQ" in script.string:
+                        img_match = re.findall(r"ShowPictureQ\(['\"](.*?)['\"]", script.string)
+                        for img_src in img_match:
+                            img_url = f"https://ege.fipi.ru/{img_src}"
+                            img_urls.append(img_url)
+                            img_file_path = f"task_{task_number:0>2}/{question_id}/{img_number}.gif"
+                            img_paths.append(img_file_path)
+                            img_number += 1
+                            img_tag_html = f'<img src="{img_file_path}"/>'
+                            problem_html = (problem_html.replace(script.string, img_tag_html).
+                                            replace('<script language=\"JavaScript\">', '').replace('</script>', ''))
+
+                        script.extract()
 
             question_text = [p.get_text(strip=True) for p in p_elements] if p_elements else [""]
             question_text_combined = "; ".join(question_text)
