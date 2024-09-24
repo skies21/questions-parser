@@ -73,6 +73,7 @@ def parse(request):
 
     match = q_count_re.search(response.text)
     q_count = int(match.group(1))
+    q_count = 100
     parsed_data = []
     task_number = 1
 
@@ -87,6 +88,8 @@ def parse(request):
             problem_html = ""
             img_paths = []
             img_urls = []
+
+            hint = question.find_next('div', class_='hint').get_text(strip=True)
 
             p_elements = question.find_all('p')
             for p in p_elements:
@@ -138,6 +141,7 @@ def parse(request):
 
             parsed_data.append({
                 "id": question_id,
+                "hint": hint,
                 "codifier": codifiers,
                 "question": question_text_combined,
                 "problem": problem_html,
