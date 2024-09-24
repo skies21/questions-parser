@@ -60,6 +60,7 @@ def clean_m_tags(soup):
 
 def parse(request):
     bank_type = request.GET.get('bank')
+    exam_type = 'ege' if 'ege' in bank_type else 'oge'
     proj_id = projects.get(bank_type)
     if not proj_id:
         return JsonResponse({'error': 'proj id not found'}, status=404)
@@ -103,7 +104,7 @@ def parse(request):
                     if img_tag and img_tag.get('src'):
                         img_file_path = f"task_{task_number:0>2}/{question_id}/{img_number}.gif"
                         img_paths.append(img_file_path)
-                        img_url = f"https://ege.fipi.ru/{img_tag['src']}"
+                        img_url = f"https://{exam_type}.fipi.ru/{img_tag['src']}"
                         img_urls.append(img_url)
                         img_tag['src'] = img_file_path
                         img_number += 1
@@ -113,7 +114,7 @@ def parse(request):
                     if "ShowPictureQ" in script.string:
                         img_match = re.findall(r"ShowPictureQ\(['\"](.*?)['\"]", script.string)
                         for img_src in img_match:
-                            img_url = f"https://ege.fipi.ru/{img_src}"
+                            img_url = f"https://{exam_type}.fipi.ru/{img_src}"
                             img_urls.append(img_url)
                             img_file_path = f"task_{task_number:0>2}/{question_id}/{img_number}.gif"
                             img_paths.append(img_file_path)
