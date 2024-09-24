@@ -79,6 +79,9 @@ def parse(request):
 
     while q_count > 0:
         soup = BeautifulSoup(response.text, 'html.parser')
+        for span in soup.find_all('span'):
+            span.unwrap()
+
         questions = soup.find_all('div', class_='qblock')
 
         for question in questions:
