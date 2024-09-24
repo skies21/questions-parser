@@ -105,7 +105,7 @@ def parse(request):
 
                     img_tag = p.find('img')
                     if img_tag and img_tag.get('src'):
-                        img_file_path = f"task_{task_number:0>2}/{question_id}/{img_number}.gif"
+                        img_file_path = f"{question_id}/{img_number}.gif"
                         img_paths.append(img_file_path)
                         img_url = f"https://{exam_type}.fipi.ru/{img_tag['src']}"
                         img_urls.append(img_url)
@@ -119,7 +119,7 @@ def parse(request):
                         for img_src in img_match:
                             img_url = f"https://{exam_type}.fipi.ru/{img_src}"
                             img_urls.append(img_url)
-                            img_file_path = f"task_{task_number:0>2}/{question_id}/{img_number}.gif"
+                            img_file_path = f"{question_id}/{img_number}.gif"
                             img_paths.append(img_file_path)
                             img_number += 1
                             img_tag_html = f'<sub><img src="{img_file_path}"/></sub>'
