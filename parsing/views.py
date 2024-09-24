@@ -51,6 +51,13 @@ def get_base_url(proj_id):
     return BASE_URLS['oge']
 
 
+def clean_m_tags(soup):
+    for tag in soup.find_all(True):
+        if tag.name.startswith('m:'):
+            tag.name = tag.name[2:]
+    return soup
+
+
 def parse(request):
     bank_type = request.GET.get('bank')
     proj_id = projects.get(bank_type)
@@ -63,60 +70,74 @@ def parse(request):
 
     if response.status_code != 200:
         return JsonResponse({'error': 'Failed to fetch data from the source'}, status=500)
+
     match = q_count_re.search(response.text)
     q_count = int(match.group(1))
+    q_count = 10
     parsed_data = []
+    task_number = 1
 
-    while True:
+    while q_count > 0:
         soup = BeautifulSoup(response.text, 'html.parser')
-
         questions = soup.find_all('div', class_='qblock')
+
         for question in questions:
             question_id = question.get('id')[1:]
-            p_elements = question.find_all('p', class_='MsoNormal')
-            question_text = []
+            img_number = 0
+            task_number += 1
+            problem_html = ""
+            img_paths = []
             img_urls = []
 
-            if p_elements:
-                for p in p_elements:
-                    # Проверяем наличие тега <script> с вызовом ShowPictureQ
-                    script = p.find('script')
-                    if script and "ShowPictureQ" in script.string:
-                        img_path = script.string.split("'")[1]
-                        img_url = f"https://ege.fipi.ru/{img_path}"
-                        img_urls.append(img_url)  # Добавляем найденный URL изображения в список
+            p_elements = question.find_all('p', class_='MsoNormal')
+            for p in p_elements:
+                p_html = clean_m_tags(p)
+                if p.get('class') == ['MsoNormal']:
+                    p_html = ''.join([str(child) for child in p.children])
 
-                    # Проверка наличия тега <img> с src
-                    img_tag = p.find('img')
-                    if img_tag and img_tag.get('src'):
-                        img_path = img_tag['src'].replace('../../', '')  # Убираем ../ из пути
-                        img_url = f"https://ege.fipi.ru/{img_path}"
-                        img_urls.append(img_url)  # Добавляем найденный URL изображения в список
+                problem_html += p_html
 
-                    # Извлечение текста параграфа
-                    question_text.append(p.get_text(strip=True))
-            else:
-                question_text = [""]
+                img_tag = p.find('img')
+                if img_tag and img_tag.get('src'):
+                    img_file_path = f"task_{task_number:0>2}/{question_id}/{img_number}.gif"
+                    img_paths.append(img_file_path)
+                    img_url = f"https://ege.fipi.ru/{img_tag['src']}"
+                    img_urls.append(img_url)
+                    img_tag['src'] = img_file_path
+                    problem_html += f'<img src="{img_file_path}" />'
+                    img_number += 1
 
+                script = p.find('script')
+                if script and "ShowPictureQ" in script.string:
+                    img_match = re.search(r"ShowPictureQ\(['\"](.*?)['\"]", script.string)
+                    if img_match:
+                        img_url = f"https://ege.fipi.ru/{img_match.group(1)}"
+                        img_urls.append(img_url)
+                        img_file_path = f"task_{task_number:0>2}/{question_id}/{img_number}.gif"
+                        img_paths.append(img_file_path)
+                        problem_html += f'<img src="{img_file_path}" />'
+                        img_number += 1
+
+            question_text = [p.get_text(strip=True) for p in p_elements] if p_elements else [""]
             question_text_combined = "; ".join(question_text)
 
             next_td = question.find_next('td', class_='param-row')
-            if next_td:
-                codifier = next_td.get_text(separator='; ', strip=True)
-            else:
-                codifier = ""
+            codifier = next_td.get_text(separator='; ', strip=True) if next_td else ""
 
             parsed_data.append({
                 "id": question_id,
                 "codifier": codifier,
                 "question": question_text_combined,
-                "img": img_urls,
+                "problem": problem_html,
+                "img": img_paths,
+                "img_urls": img_urls,
                 "answer": "",
             })
 
         q_count -= len(questions)
         if q_count <= 0:
             break
+
         response = next(resp_gen)
         if response.status_code != 200:
             return JsonResponse({'error': 'Failed to fetch data from the source'}, status=500)
