@@ -134,6 +134,8 @@ def parse(request):
                     if codifier_text:
                         codifiers.append(codifier_text)
 
+            answer_type = next_td.find_next('td', class_='param-name').find_next().get_text(strip=True)
+
             parsed_data.append({
                 "id": question_id,
                 "codifier": codifiers,
@@ -141,6 +143,7 @@ def parse(request):
                 "problem": problem_html,
                 "img": img_paths,
                 "img_urls": img_urls,
+                "answer_type": answer_type,
                 "answer": "",
             })
 
