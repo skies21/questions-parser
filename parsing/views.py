@@ -126,11 +126,17 @@ def parse(request):
             question_text_combined = "; ".join(question_text)
 
             next_td = question.find_next('td', class_='param-row')
-            codifier = next_td.get_text(separator='; ', strip=True) if next_td else ""
+            codifiers = []
+            if next_td:
+                codifier_elements = next_td.find_all()
+                for codifier_element in codifier_elements:
+                    codifier_text = codifier_element.get_text(strip=True)
+                    if codifier_text:
+                        codifiers.append(codifier_text)
 
             parsed_data.append({
                 "id": question_id,
-                "codifier": codifier,
+                "codifier": codifiers,
                 "question": question_text_combined,
                 "problem": problem_html,
                 "img": img_paths,
