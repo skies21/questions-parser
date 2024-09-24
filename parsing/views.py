@@ -73,7 +73,6 @@ def parse(request):
 
     match = q_count_re.search(response.text)
     q_count = int(match.group(1))
-    q_count = 10
     parsed_data = []
     task_number = 1
 
