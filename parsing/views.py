@@ -73,7 +73,6 @@ def parse(request):
 
     match = q_count_re.search(response.text)
     q_count = int(match.group(1))
-    q_count = 100
     parsed_data = []
     task_number = 1
 
@@ -82,7 +81,7 @@ def parse(request):
         questions = soup.find_all('div', class_='qblock')
 
         for question in questions:
-            question_id = question.get('id')[1:]
+            question_id = question.get('id')[1:] if question.get('id') else ""
             img_number = 0
             task_number += 1
             problem_html = ""
@@ -138,6 +137,8 @@ def parse(request):
                         codifiers.append(codifier_text)
 
             answer_type = next_td.find_next('td', class_='param-name').find_next().get_text(strip=True)
+            number_in_group_tag = next_td.find_next('span', class_='number-in-group-text')
+            number_in_group = number_in_group_tag.get_text(strip=True) if number_in_group_tag else ""
 
             parsed_data.append({
                 "id": question_id,
@@ -147,6 +148,7 @@ def parse(request):
                 "problem": problem_html,
                 "img": img_paths,
                 "img_urls": img_urls,
+                "number_in_group": number_in_group,
                 "answer_type": answer_type,
                 "answer": "",
             })
