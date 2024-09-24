@@ -119,9 +119,9 @@ def parse(request):
                             img_file_path = f"task_{task_number:0>2}/{question_id}/{img_number}.gif"
                             img_paths.append(img_file_path)
                             img_number += 1
-                            img_tag_html = f'<img src="{img_file_path}"/>'
-                            problem_html = (problem_html.replace(script.string, img_tag_html).
-                                            replace('<script language=\"JavaScript\">', '').replace('</script>', ''))
+                            img_tag_html = f'<sub><img src="{img_file_path}"/></sub>'
+                            problem_html = re.sub(r'<script.*?>.*?</script>', img_tag_html, problem_html,
+                                                  flags=re.IGNORECASE)
 
                         script.extract()
 
