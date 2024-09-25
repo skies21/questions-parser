@@ -97,11 +97,18 @@ def parse(request):
             p_elements = question.find_all('p')
             for p in p_elements:
                 if 'MsoNormal' in p.get('class', []) or 'Basis' in p.get('class', []):
-                    p_html = str(clean_m_tags(p))
-                    if p.get('class') == 'MsoNormal' or 'Basis':
-                        p_html = ''.join([str(child) for child in p.children])
+                    if not p.find_parent('table', class_='MsoNormalTable'):
+                        p_html = str(clean_m_tags(p))
+                        if p.get('class') == 'MsoNormal' or 'Basis':
+                            p_html = ''.join([str(child) for child in p.children])
 
-                    problem_html += p_html
+                        problem_html += p_html
+                    else:
+                        table = p.find_parent('table', class_='MsoNormalTable')
+                        for tag in table.find_all(True):
+                            tag.attrs = {key: value for key, value in tag.attrs.items() if
+                                         key not in ['class', 'style']}
+                        problem_html += str(table)
 
                     img_tag = p.find('img')
                     if img_tag and img_tag.get('src'):
