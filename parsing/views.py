@@ -135,11 +135,27 @@ def parse(request):
 
                         script.extract()
 
+            answer_table = question.find('table', class_='answer-table')
+            if answer_table:
+                for tag in answer_table.find_all(True):
+                    tag.attrs = {key: value for key, value in tag.attrs.items() if
+                                 key not in ['class', 'style']}
+                problem_html += str(answer_table)
+
+            distractors_table = question.find('table', class_='distractors_table')
+            if distractors_table:
+                for tag in distractors_table.find_all(True):
+                    tag.attrs = {key: value for key, value in tag.attrs.items() if
+                                 key not in ['class', 'style']}
+                problem_html += str(distractors_table)
+
             question_text = [p.get_text(strip=True) for p in p_elements] if p_elements else [""]
             question_text_combined = "; ".join(question_text)
 
             next_td = question.find_next('td', class_='param-row')
             codifiers = []
+            answer_type = ""
+            number_in_group = ""
             if next_td:
                 codifier_elements = next_td.find_all()
                 for codifier_element in codifier_elements:
@@ -147,9 +163,9 @@ def parse(request):
                     if codifier_text:
                         codifiers.append(codifier_text)
 
-            answer_type = next_td.find_next('td', class_='param-name').find_next().get_text(strip=True)
-            number_in_group_tag = next_td.find_next('span', class_='number-in-group-text')
-            number_in_group = number_in_group_tag.get_text(strip=True) if number_in_group_tag else ""
+                answer_type = next_td.find_next('td', class_='param-name').find_next().get_text(strip=True)
+                number_in_group_tag = next_td.find_next('span', class_='number-in-group-text')
+                number_in_group = number_in_group_tag.get_text(strip=True) if number_in_group_tag else ""
 
             parsed_data.append({
                 "id": question_id,
