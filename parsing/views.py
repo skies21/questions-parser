@@ -128,10 +128,9 @@ def parse(request):
                             img_urls.append(img_url)
                             img_file_path = f"{question_id}/{img_number}.gif"
                             img_paths.append(img_file_path)
-                            img_number += 1
                             img_tag_html = f'<sub><img src="{img_file_path}"/></sub>'
-                            problem_html = re.sub(r'<script.*?>.*?</script>', img_tag_html, problem_html,
-                                                  flags=re.IGNORECASE)
+                            problem_html = re.sub(re.escape(str(script)), img_tag_html, problem_html, flags=re.IGNORECASE)
+                            img_number += 1
 
                         script.extract()
 
