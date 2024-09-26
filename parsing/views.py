@@ -94,6 +94,20 @@ def parse(request):
 
             hint = question.find_next('div', class_='hint').get_text(strip=True)
 
+            answer_table = question.find('table', class_='answer-table')
+            if answer_table:
+                for tag in answer_table.find_all(True):
+                    tag.attrs = {key: value for key, value in tag.attrs.items() if
+                                 key not in ['class', 'style']}
+                problem_html += str(answer_table)
+
+            distractors_table = question.find('table', class_='distractors-table')
+            if distractors_table:
+                for tag in distractors_table.find_all(True):
+                    tag.attrs = {key: value for key, value in tag.attrs.items() if
+                                 key not in ['class', 'style']}
+                problem_html += str(distractors_table)
+
             p_elements = question.find_all('p')
             for p in p_elements:
                 if 'MsoNormal' in p.get('class', []) or 'Basis' in p.get('class', []):
@@ -133,20 +147,6 @@ def parse(request):
                             img_number += 1
 
                         script.extract()
-
-            answer_table = question.find('table', class_='answer-table')
-            if answer_table:
-                for tag in answer_table.find_all(True):
-                    tag.attrs = {key: value for key, value in tag.attrs.items() if
-                                 key not in ['class', 'style']}
-                problem_html += str(answer_table)
-
-            distractors_table = question.find('table', class_='distractors_table')
-            if distractors_table:
-                for tag in distractors_table.find_all(True):
-                    tag.attrs = {key: value for key, value in tag.attrs.items() if
-                                 key not in ['class', 'style']}
-                problem_html += str(distractors_table)
 
             question_text = [p.get_text(strip=True) for p in p_elements] if p_elements else [""]
             question_text_combined = "; ".join(question_text)
