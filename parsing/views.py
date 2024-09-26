@@ -73,7 +73,7 @@ def parse(request):
         return JsonResponse({'error': 'Failed to fetch data from the source'}, status=500)
 
     match = q_count_re.search(response.text)
-    q_count = int(match.group(1))
+    q_count = int(match.group(1)) + 100
     parsed_data = []
     task_number = 1
 
@@ -151,19 +151,21 @@ def parse(request):
             question_text = [p.get_text(strip=True) for p in p_elements] if p_elements else [""]
             question_text_combined = "; ".join(question_text)
 
-            next_td = question.find_next('td', class_='param-row')
+            next_td = question.find_next_sibling('div')
             codifiers = []
             answer_type = ""
             number_in_group = ""
             if next_td:
-                codifier_elements = next_td.find_all()
-                for codifier_element in codifier_elements:
-                    codifier_text = codifier_element.get_text(strip=True)
-                    if codifier_text:
-                        codifiers.append(codifier_text)
+                next_td_row = next_td.find('td', class_='param-row')
+                if next_td_row:
+                    codifier_elements = next_td_row.find_all()
+                    for codifier_element in codifier_elements:
+                        codifier_text = codifier_element.get_text(strip=True)
+                        if codifier_text:
+                            codifiers.append(codifier_text)
+                    answer_type = next_td_row.find_next('td', class_='param-name').find_next().get_text(strip=True)
 
-                answer_type = next_td.find_next('td', class_='param-name').find_next().get_text(strip=True)
-                number_in_group_tag = next_td.find_next('span', class_='number-in-group-text')
+                number_in_group_tag = next_td.find_next('div', class_='number-in-group')
                 number_in_group = number_in_group_tag.get_text(strip=True) if number_in_group_tag else ""
 
             parsed_data.append({
