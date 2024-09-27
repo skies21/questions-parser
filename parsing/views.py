@@ -170,6 +170,8 @@ def parse(request):
                 if not question_id and '(' in number_in_group and ')' in number_in_group:
                     question_id = re.search(r'\((.*?)\)', number_in_group).group(1)
 
+            problem_html = re.sub(r'<script.*?>.*?</script>', '', problem_html, flags=re.DOTALL)
+
             parsed_data.append({
                 "id": question_id,
                 "hint": hint,
