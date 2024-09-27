@@ -167,6 +167,8 @@ def parse(request):
 
                 number_in_group_tag = next_td.find_next('div', class_='number-in-group')
                 number_in_group = number_in_group_tag.get_text(strip=True) if number_in_group_tag else ""
+                if not question_id and '(' in number_in_group and ')' in number_in_group:
+                    question_id = re.search(r'\((.*?)\)', number_in_group).group(1)
 
             parsed_data.append({
                 "id": question_id,
