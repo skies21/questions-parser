@@ -167,12 +167,12 @@ def parse(request):
 
                 number_in_group_tag = next_td.find_next('div', class_='number-in-group')
                 number_in_group = number_in_group_tag.get_text(strip=True) if number_in_group_tag else ""
-                if not question_id and '(' in number_in_group and ')' in number_in_group:
-                    question_id = re.search(r'\((.*?)\)', number_in_group).group(1)
+                if not answer_type and not question_id and number_in_group:
+                    number_in_group = '0' + number_in_group[1:]
 
             problem_html = re.sub(r'<script.*?>.*?</script>', '', problem_html, flags=re.DOTALL)
 
-            parsed_data.append({
+            new_data = {
                 "id": question_id,
                 "hint": hint,
                 "codifier": codifiers,
@@ -183,7 +183,14 @@ def parse(request):
                 "number_in_group": number_in_group,
                 "answer_type": answer_type,
                 "answer": "",
-            })
+            }
+
+            for item in parsed_data:
+                if item == new_data:
+                    # Если нашли идентичный объект, выходим из цикла
+                    break
+            else:
+                parsed_data.append(new_data)
 
         q_count -= len(questions)
         if q_count <= 0:
