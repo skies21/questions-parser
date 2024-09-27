@@ -73,7 +73,7 @@ def parse(request):
         return JsonResponse({'error': 'Failed to fetch data from the source'}, status=500)
 
     match = q_count_re.search(response.text)
-    q_count = int(match.group(1)) + 100
+    q_count = int(match.group(1))
     parsed_data = []
     task_number = 1
 
@@ -168,6 +168,7 @@ def parse(request):
                 number_in_group_tag = next_td.find_next('div', class_='number-in-group')
                 number_in_group = number_in_group_tag.get_text(strip=True) if number_in_group_tag else ""
                 if not answer_type and not question_id and number_in_group:
+                    q_count += 1
                     number_in_group = '0' + number_in_group[1:]
 
             problem_html = re.sub(r'<script.*?>.*?</script>', '', problem_html, flags=re.DOTALL)
