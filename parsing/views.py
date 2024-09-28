@@ -58,6 +58,44 @@ def clean_m_tags(soup):
     return soup
 
 
+def process_table(p, problem_html, table_found):
+    """Обработка таблицы MsoNormalTable или MsoTableGrid."""
+    if table_found:
+        return problem_html, table_found
+
+    table = p.find_parent('table', class_='MsoNormalTable')
+    if not table:
+        table = p.find_parent('table', class_='MsoTableGrid')
+
+    if table:
+        for tag in table.find_all(True):
+            tag.attrs = {key: value for key, value in tag.attrs.items() if key not in ['class', 'style']}
+        problem_html += str(table)
+        table_found = True
+    return problem_html, table_found
+
+
+def process_image(p, question_id, img_number, img_paths, img_urls, exam_type):
+    """Обработка изображений"""
+    img_tag = p.find('img')
+    if img_tag and img_tag.get('src'):
+        img_file_path = f"{question_id}/{img_number}.gif"
+        img_paths.append(img_file_path)
+        img_url = f"https://{exam_type}.fipi.ru/{img_tag['src']}"
+        img_urls.append(img_url)
+        img_tag['src'] = img_file_path
+        img_number += 1
+    return img_number
+
+
+def process_content(p):
+    """Обработка контента элемента"""
+    p_html = str(clean_m_tags(p))
+    if 'MsoNormal' in p.get('class', []) or 'Basis' in p.get('class', []):
+        p_html = ''.join([str(child) for child in p.children])
+    return p_html
+
+
 def parse(request):
     bank_type = request.GET.get('bank')
     exam_type = 'ege' if 'ege' in bank_type else 'oge'
@@ -109,29 +147,27 @@ def parse(request):
                 problem_html += str(distractors_table)
 
             p_elements = question.find_all('p')
-            for p in p_elements:
-                if 'MsoNormal' in p.get('class', []) or 'Basis' in p.get('class', []):
-                    if not p.find_parent('table', class_='MsoNormalTable'):
-                        p_html = str(clean_m_tags(p))
-                        if p.get('class') == 'MsoNormal' or 'Basis':
-                            p_html = ''.join([str(child) for child in p.children])
+            span_elements = question.find_all('span')
+            elements = p_elements if p_elements else span_elements
+            table_found = False
 
-                        problem_html += p_html
+            for p in elements:
+                if elements is p_elements and ('MsoNormal' in p.get('class', []) or 'Basis' in p.get('class', [])):
+                    if not p.find_parent('table', class_='MsoNormalTable') and not p.find_parent('table',
+                                                                                                 class_='MsoTableGrid'):
+                        problem_html += process_content(p)
                     else:
-                        table = p.find_parent('table', class_='MsoNormalTable')
-                        for tag in table.find_all(True):
-                            tag.attrs = {key: value for key, value in tag.attrs.items() if
-                                         key not in ['class', 'style']}
-                        problem_html += str(table)
+                        problem_html, table_found = process_table(p, problem_html, table_found)
 
-                    img_tag = p.find('img')
-                    if img_tag and img_tag.get('src'):
-                        img_file_path = f"{question_id}/{img_number}.gif"
-                        img_paths.append(img_file_path)
-                        img_url = f"https://{exam_type}.fipi.ru/{img_tag['src']}"
-                        img_urls.append(img_url)
-                        img_tag['src'] = img_file_path
-                        img_number += 1
+                    img_number = process_image(p, question_id, img_number, img_paths, img_urls, exam_type)
+                else:
+                    if not p.find_parent('table', class_='MsoNormalTable') and not p.find_parent('table',
+                                                                                                 class_='MsoTableGrid'):
+                        problem_html += process_content(p)
+                    else:
+                        problem_html, table_found = process_table(p, problem_html, table_found)
+
+                    img_number = process_image(p, question_id, img_number, img_paths, img_urls, exam_type)
 
                 script_tags = p.find_all('script')
                 for script in script_tags:
