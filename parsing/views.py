@@ -169,7 +169,7 @@ def parse(request):
                 number_in_group = number_in_group_tag.get_text(strip=True) if number_in_group_tag else ""
                 if not answer_type and not question_id and number_in_group:
                     q_count += 1
-                    number_in_group = '0' + number_in_group[1:]
+                    number_in_group = re.sub(r'^\S+', '0', number_in_group, count=1)
 
             problem_html = re.sub(r'<script.*?>.*?</script>', '', problem_html, flags=re.DOTALL)
 
