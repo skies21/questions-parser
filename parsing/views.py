@@ -75,11 +75,11 @@ def process_table(p, problem_html, table_found):
     return problem_html, table_found
 
 
-def process_image(p, question_id, img_number, img_paths, img_urls, exam_type):
+def process_image(p, question_id, number_in_group, img_number, img_paths, img_urls, exam_type):
     """Обработка изображений"""
     img_tag = p.find('img')
     if img_tag and img_tag.get('src'):
-        img_file_path = f"{question_id}/{img_number}.gif"
+        img_file_path = f"{question_id}/{img_number}.gif" if question_id else f"{number_in_group}/{img_number}.gif"
         img_paths.append(img_file_path)
         img_url = f"https://{exam_type}.fipi.ru/{img_tag['src']}"
         img_urls.append(img_url)
@@ -146,47 +146,6 @@ def parse(request):
                                  key not in ['class', 'style']}
                 problem_html += str(distractors_table)
 
-            p_elements = question.find_all('p')
-            span_elements = question.find_all('span')
-            elements = p_elements if p_elements else span_elements
-            table_found = False
-
-            for p in elements:
-                if elements is p_elements and ('MsoNormal' in p.get('class', []) or 'Basis' in p.get('class', [])):
-                    if not p.find_parent('table', class_='MsoNormalTable') and not p.find_parent('table',
-                                                                                                 class_='MsoTableGrid'):
-                        problem_html += process_content(p)
-                    else:
-                        problem_html, table_found = process_table(p, problem_html, table_found)
-
-                    img_number = process_image(p, question_id, img_number, img_paths, img_urls, exam_type)
-                else:
-                    if not p.find_parent('table', class_='MsoNormalTable') and not p.find_parent('table',
-                                                                                                 class_='MsoTableGrid'):
-                        problem_html += process_content(p)
-                    else:
-                        problem_html, table_found = process_table(p, problem_html, table_found)
-
-                    img_number = process_image(p, question_id, img_number, img_paths, img_urls, exam_type)
-
-                script_tags = p.find_all('script')
-                for script in script_tags:
-                    if "ShowPictureQ" in script.string:
-                        img_match = re.findall(r"ShowPictureQ\(['\"](.*?)['\"]", script.string)
-                        for img_src in img_match:
-                            img_url = f"https://{exam_type}.fipi.ru/{img_src}"
-                            img_urls.append(img_url)
-                            img_file_path = f"{question_id}/{img_number}.gif"
-                            img_paths.append(img_file_path)
-                            img_tag_html = f'<sub><img src="{img_file_path}"/></sub>'
-                            problem_html = re.sub(re.escape(str(script)), img_tag_html, problem_html, flags=re.IGNORECASE)
-                            img_number += 1
-
-                        script.extract()
-
-            question_text = [p.get_text(strip=True) for p in p_elements] if p_elements else [""]
-            question_text_combined = "; ".join(question_text)
-
             next_td = question.find_next_sibling('div')
             codifiers = []
             answer_type = ""
@@ -206,6 +165,51 @@ def parse(request):
                 if not answer_type and not question_id and number_in_group:
                     q_count += 1
                     number_in_group = re.sub(r'^\S+', '0', number_in_group, count=1)
+
+            p_elements = question.find_all('p')
+            span_elements = question.find_all('span')
+            elements = p_elements if p_elements else span_elements
+            table_found = False
+
+            for p in elements:
+                if elements is p_elements and ('MsoNormal' in p.get('class', []) or 'Basis' in p.get('class', [])):
+                    if not p.find_parent('table', class_='MsoNormalTable') and not p.find_parent('table',
+                                                                                                 class_='MsoTableGrid'):
+                        problem_html += process_content(p)
+                    else:
+                        problem_html, table_found = process_table(p, problem_html, table_found)
+
+                    img_number = process_image(p, question_id, number_in_group, img_number, img_paths, img_urls, exam_type)
+                else:
+                    if not p.find_parent('table', class_='MsoNormalTable') and not p.find_parent('table',
+                                                                                                 class_='MsoTableGrid'):
+                        problem_html += process_content(p)
+                    else:
+                        problem_html, table_found = process_table(p, problem_html, table_found)
+
+                    img_number = process_image(p, question_id, number_in_group, img_number, img_paths, img_urls, exam_type)
+
+                script_tags = p.find_all('script')
+                for script in script_tags:
+                    if script.string and re.search(r"ShowPictureQ|ShowPicture", script.string):
+                        img_match = re.findall(r"ShowPicture(Q)?\(['\"](.*?)['\"]", script.string)
+                        for img_src_tuple in img_match:
+                            img_src = img_src_tuple[1]
+                            img_url = f"https://{exam_type}.fipi.ru/{img_src}"
+                            img_urls.append(img_url)
+                            img_file_path = f"{question_id}/{img_number}.gif" if question_id else \
+                                f"{number_in_group}/{img_number}.gif"
+                            img_paths.append(img_file_path)
+                            img_tag_html = f'<sub><img src="{img_file_path}"/></sub>'
+
+                            problem_html = re.sub(re.escape(str(script)), img_tag_html, problem_html,
+                                                  flags=re.IGNORECASE)
+                            img_number += 1
+
+                        script.extract()
+
+            question_text = [p.get_text(strip=True) for p in p_elements] if p_elements else [""]
+            question_text_combined = "; ".join(question_text)
 
             problem_html = re.sub(r'<script.*?>.*?</script>', '', problem_html, flags=re.DOTALL)
 
