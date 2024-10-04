@@ -96,6 +96,47 @@ def process_content(p):
     return p_html
 
 
+def move_radio_table_to_end(problem_html):
+    # Парсим HTML
+    soup = BeautifulSoup(problem_html, 'html.parser')
+
+    # Найдем таблицы с радиокнопками
+    radio_table = soup.find('table', class_='distractors-table')
+
+    if radio_table and radio_table.find('input', {'type': 'radio'}):
+        # Вырезаем таблицу с вариантами ответов
+        radio_table.extract()
+
+        # Преобразуем оставшийся контент в строку
+        remaining_content = str(soup)
+
+        # Добавляем таблицу в конец контента
+        updated_problem_html = remaining_content + str(radio_table)
+
+        return updated_problem_html
+
+    return problem_html  # Если нет радиокнопок, возвращаем исходный HTML
+
+
+def remove_non_radio_duplicate_images(problem_html):
+    # Парсим HTML-код
+    soup = BeautifulSoup(problem_html, 'html.parser')
+
+    # Найдем таблицу с радиокнопками
+    radio_table = soup.find('table', class_='distractors-table')
+
+    # Собираем все изображения из таблицы с радиокнопками
+    table_images = {img['src'] for img in radio_table.find_all('img')} if radio_table else set()
+
+    # Найдем все изображения вне таблицы с радиокнопками
+    for img in soup.find_all('img'):
+        # Если изображение вне таблицы и его src совпадает с изображением из таблицы, удаляем его
+        if img['src'] in table_images and not img.find_parent('table'):
+            img.decompose()
+
+    return str(soup)
+
+
 def parse(request):
     bank_type = request.GET.get('bank')
     exam_type = 'ege' if 'ege' in bank_type else 'oge'
@@ -172,6 +213,7 @@ def parse(request):
             table_found = False
 
             for p in elements:
+                # Проверяем, является ли элемент параграфом задания или частью таблицы ответов
                 if elements is p_elements and ('MsoNormal' in p.get('class', []) or 'Basis' in p.get('class', [])):
                     if not p.find_parent('table', class_='MsoNormalTable') and not p.find_parent('table',
                                                                                                  class_='MsoTableGrid'):
@@ -179,7 +221,8 @@ def parse(request):
                     else:
                         problem_html, table_found = process_table(p, problem_html, table_found)
 
-                    img_number = process_image(p, question_id, number_in_group, img_number, img_paths, img_urls, exam_type)
+                    img_number = process_image(p, question_id, number_in_group, img_number, img_paths, img_urls,
+                                               exam_type)
                 else:
                     if not p.find_parent('table', class_='MsoNormalTable') and not p.find_parent('table',
                                                                                                  class_='MsoTableGrid'):
@@ -187,8 +230,10 @@ def parse(request):
                     else:
                         problem_html, table_found = process_table(p, problem_html, table_found)
 
-                    img_number = process_image(p, question_id, number_in_group, img_number, img_paths, img_urls, exam_type)
+                    img_number = process_image(p, question_id, number_in_group, img_number, img_paths, img_urls,
+                                               exam_type)
 
+                # Обработка скриптов с картинками
                 script_tags = p.find_all('script')
                 for script in script_tags:
                     if script.string and re.search(r"ShowPictureQ|ShowPicture", script.string):
@@ -202,16 +247,20 @@ def parse(request):
                             img_paths.append(img_file_path)
                             img_tag_html = f'<sub><img src="{img_file_path}"/></sub>'
 
+                            # Заменяем скрипт на HTML-тег с изображением
                             problem_html = re.sub(re.escape(str(script)), img_tag_html, problem_html,
                                                   flags=re.IGNORECASE)
                             img_number += 1
 
+                        # Удаляем тег скрипта после обработки
                         script.extract()
 
             question_text = [p.get_text(strip=True) for p in p_elements] if p_elements else [""]
             question_text_combined = "; ".join(question_text)
 
             problem_html = re.sub(r'<script.*?>.*?</script>', '', problem_html, flags=re.DOTALL)
+            problem_html = move_radio_table_to_end(problem_html)
+            problem_html = remove_non_radio_duplicate_images(problem_html)
 
             new_data = {
                 "id": question_id,
