@@ -141,6 +141,25 @@ def remove_non_radio_duplicate_images(problem_html):
     return str(soup)
 
 
+def remove_duplicate_paragraphs(problem_html):
+    # Парсим HTML-код
+    soup = BeautifulSoup(problem_html, 'html.parser')
+
+    # Найдем таблицу с радиокнопками
+    radio_table = soup.find('table', class_='distractors-table')
+
+    if radio_table:
+        # Собираем тексты всех <p> элементов внутри таблицы
+        table_p_texts = [p_element.get_text(strip=True) for p_element in radio_table.find_all('p')]
+
+        # Удаляем <p> теги вне таблицы, если текст совпадает с любым из текстов в таблице
+        for p_element in soup.find_all('p'):
+            if p_element.get_text(strip=True) in table_p_texts and p_element.find_parent('table') is None:
+                p_element.decompose()
+
+    return str(soup)
+
+
 def parse(request):
     bank_type = request.GET.get('bank')
     exam_type = 'ege' if 'ege' in bank_type else 'oge'
@@ -265,6 +284,7 @@ def parse(request):
             problem_html = re.sub(r'<script.*?>.*?</script>', '', problem_html, flags=re.DOTALL)
             problem_html = move_radio_table_to_end(problem_html)
             problem_html = remove_non_radio_duplicate_images(problem_html)
+            problem_html = remove_duplicate_paragraphs(problem_html)
 
             new_data = {
                 "id": question_id,
