@@ -253,7 +253,14 @@ def parse(request):
                             codifiers.append(codifier_text)
                     answer_type = next_td_row.find_next('td', class_='param-name').find_next().get_text(strip=True)
 
-                number_in_group_tag = next_td.find_next('div', class_='number-in-group')
+                # Ищем number_in_group в текущем элементе
+                number_in_group_tag = next_td.find('div', class_='number-in-group')
+
+                # Если не найдено, проверяем в следующем элементе, только если question_id не найден
+                if not number_in_group_tag and not question_id:
+                    number_in_group_tag = next_td.find_next('div', class_='number-in-group')
+
+                # Получаем текст из найденного элемента
                 number_in_group = number_in_group_tag.get_text(strip=True) if number_in_group_tag else ""
                 if not answer_type and not question_id and number_in_group:
                     q_count += 1
