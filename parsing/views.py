@@ -98,30 +98,37 @@ def process_content(p):
     return p_html
 
 
-def move_radio_table_to_end(problem_html):
+def move_tables_to_end(problem_html):
     # Парсим HTML
     soup = BeautifulSoup(problem_html, 'html.parser')
 
-    # Найдем таблицы с радиокнопками
-    radio_table = soup.find('table', class_='distractors-table')
+    # Найдем distractors и answer таблицы
+    distractors_table = soup.find('table', class_='distractors-table')
+    answer_table = soup.find('table', class_='answer-table')
 
-    if radio_table and radio_table.find('input', {'type': 'radio'}):
-        # Вырезаем таблицу с вариантами ответов
-        radio_table.extract()
+    tables_to_move = []
 
-        # Очищаем теги внутри таблицы от префиксов 'm:'
-        radio_table_html = str(radio_table)
-        cleaned_radio_table_html = re.sub(r'\bm:', '', radio_table_html)
+    # Если есть distractors таблица, вырезаем ее и очищаем
+    if distractors_table:
+        distractors_table.extract()
+        distractors_table_html = str(distractors_table)
+        cleaned_distractors_table_html = re.sub(r'\bm:', '', distractors_table_html)
+        tables_to_move.append(cleaned_distractors_table_html)
 
-        # Преобразуем оставшийся контент в строку
-        remaining_content = str(soup)
+    # Если есть answer таблица, вырезаем ее и очищаем
+    if answer_table:
+        answer_table.extract()
+        answer_table_html = str(answer_table)
+        cleaned_answer_table_html = re.sub(r'\bm:', '', answer_table_html)
+        tables_to_move.append(cleaned_answer_table_html)
 
-        # Добавляем очищенную таблицу в конец контента
-        updated_problem_html = remaining_content + cleaned_radio_table_html
+    # Преобразуем оставшийся контент в строку
+    remaining_content = str(soup)
 
-        return updated_problem_html
+    # Добавляем очищенные таблицы в конец контента
+    updated_problem_html = remaining_content + ''.join(tables_to_move)
 
-    return problem_html  # Если нет радиокнопок, возвращаем исходный HTML
+    return updated_problem_html
 
 
 def remove_non_radio_duplicate_images(problem_html):
@@ -320,7 +327,7 @@ def parse(request):
             question_text_combined = "; ".join(question_text)
 
             problem_html = re.sub(r'<script.*?>.*?</script>', '', problem_html, flags=re.DOTALL)
-            problem_html = move_radio_table_to_end(problem_html)
+            problem_html = move_tables_to_end(problem_html)
             problem_html = remove_non_radio_duplicate_images(problem_html)
             problem_html = remove_duplicate_paragraphs(problem_html)
             problem_html = clean_problem_text(problem_html)
