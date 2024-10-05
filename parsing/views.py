@@ -107,11 +107,15 @@ def move_radio_table_to_end(problem_html):
         # Вырезаем таблицу с вариантами ответов
         radio_table.extract()
 
+        # Очищаем теги внутри таблицы от префиксов 'm:'
+        radio_table_html = str(radio_table)
+        cleaned_radio_table_html = re.sub(r'\bm:', '', radio_table_html)
+
         # Преобразуем оставшийся контент в строку
         remaining_content = str(soup)
 
-        # Добавляем таблицу в конец контента
-        updated_problem_html = remaining_content + str(radio_table)
+        # Добавляем очищенную таблицу в конец контента
+        updated_problem_html = remaining_content + cleaned_radio_table_html
 
         return updated_problem_html
 
