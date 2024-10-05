@@ -141,6 +141,11 @@ def remove_non_radio_duplicate_images(problem_html):
     return str(soup)
 
 
+def clean_problem_text(problem_html):
+    cleaned_problem = problem_html.replace('xml:namespace prefix = m ns = "http://www.w3.org/1998/Math/MathML" /', '')
+    return cleaned_problem
+
+
 def remove_duplicate_paragraphs(problem_html):
     # Парсим HTML-код
     soup = BeautifulSoup(problem_html, 'html.parser')
@@ -158,6 +163,30 @@ def remove_duplicate_paragraphs(problem_html):
                 p_element.decompose()
 
     return str(soup)
+
+
+def remove_special_characters(problem_html):
+    # Парсим HTML-код
+    soup = BeautifulSoup(problem_html, 'html.parser')
+
+    # Удаляем теги <mi> с символом �
+    for mi_tag in soup.find_all('mi'):
+        if mi_tag.text == '�':
+            mi_tag.decompose()  # Удаляем тег <mi>
+
+    # Удаляем теги <semantics> с <mi> внутри
+    for semantics_tag in soup.find_all('semantics'):
+        mi_inside = semantics_tag.find('mi')
+        if mi_inside and mi_inside.text == '�':
+            semantics_tag.decompose()  # Удаляем тег <semantics>
+
+    return str(soup)
+
+
+def clean_problem_char(problem_text):
+    # Удаляем символы �
+    cleaned_text = problem_text.replace('�', '')
+    return cleaned_text
 
 
 def parse(request):
@@ -285,6 +314,9 @@ def parse(request):
             problem_html = move_radio_table_to_end(problem_html)
             problem_html = remove_non_radio_duplicate_images(problem_html)
             problem_html = remove_duplicate_paragraphs(problem_html)
+            problem_html = clean_problem_text(problem_html)
+            problem_html = remove_special_characters(problem_html)
+            question_text_combined = clean_problem_char(question_text_combined)
 
             new_data = {
                 "id": question_id,
