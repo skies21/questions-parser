@@ -28,6 +28,8 @@ projects = {
     "math_ege_profil": "AC437B34557F88EA4115D2F374B0A07B",
     "math_ege_base": "E040A72A1A3DABA14C90C97E0B6EE7DC",
     "math_oge": "DE0E276E497AB3784C3FC4CC20248DC0",
+    "eng_oge": "8BBD5C99F37898B6402964AB11955663",
+    "eng_ege": "4B53A6CB75B0B5E1427E596EB4931A2A"
 }
 
 q_count_re = re.compile(r"window\.parent\.setQCount\((\d+)\)")
