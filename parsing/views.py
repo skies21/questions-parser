@@ -193,9 +193,18 @@ def remove_special_characters(problem_html):
 
 
 def clean_problem_char(problem_text):
-    # Удаляем символы �
-    cleaned_text = problem_text.replace('�', '')
-    return cleaned_text
+    # Словарь с некорректными словами и их заменами
+    replacements = {
+        "бо�ьшим": 'большим',
+        "сто�т": 'стоит',
+        "у�е": 'уже',
+    }
+
+    # Заменяем каждое некорректное слово в тексте на его корректную версию
+    for incorrect_word, correct_word in replacements.items():
+        problem_text = problem_text.replace(incorrect_word, correct_word)
+
+    return problem_text
 
 
 def parse(request):
@@ -216,7 +225,7 @@ def parse(request):
     q_count = int(match.group(1))
     parsed_data = []
     task_number = 1
-
+    q = 0
     while q_count > 0:
         soup = BeautifulSoup(response.text, 'html.parser')
         for span in soup.find_all('span'):
@@ -332,7 +341,10 @@ def parse(request):
             problem_html = remove_duplicate_paragraphs(problem_html)
             problem_html = clean_problem_text(problem_html)
             problem_html = remove_special_characters(problem_html)
-            question_text_combined = clean_problem_char(question_text_combined)
+
+            problem_ids = ['182CF4', '3B5E5D', '83B1F6', '5251BA']
+            if question_id in problem_ids:
+                question_text_combined = clean_problem_char(question_text_combined)
 
             new_data = {
                 "id": question_id,
