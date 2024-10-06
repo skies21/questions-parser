@@ -193,16 +193,17 @@ def remove_special_characters(problem_html):
 
 
 def clean_problem_char(problem_text):
-    # Словарь с некорректными словами и их заменами
+    # Определяем словарь замены для символа � в контексте
     replacements = {
-        "бо�ьшим": 'большим',
-        "сто�т": 'стоит',
-        "у�е": 'уже',
+        'о�ь': 'л',  # "бо�ьш" → "больш"
+        'о�т': 'и',  # "сто�т" → "стоит"
+        'у�е': 'ж',  # "у�е" → "уже"
+        'y�l': "'",  # "they�ll" → "they'll"
     }
 
-    # Заменяем каждое некорректное слово в тексте на его корректную версию
-    for incorrect_word, correct_word in replacements.items():
-        problem_text = problem_text.replace(incorrect_word, correct_word)
+    # Выполняем замену для каждого шаблона из словаря
+    for pattern, replacement in replacements.items():
+        problem_text = re.sub(pattern, replacement, problem_text)
 
     return problem_text
 
@@ -342,7 +343,7 @@ def parse(request):
             problem_html = clean_problem_text(problem_html)
             problem_html = remove_special_characters(problem_html)
 
-            problem_ids = ['182CF4', '3B5E5D', '83B1F6', '5251BA']
+            problem_ids = ['182CF4', '3B5E5D', '83B1F6', '5251BA', '4487DB']
             if question_id in problem_ids:
                 question_text_combined = clean_problem_char(question_text_combined)
 
