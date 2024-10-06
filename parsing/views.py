@@ -242,7 +242,6 @@ def parse(request):
     q_count = int(match.group(1))
     parsed_data = []
     task_number = 1
-    q = 0
     while q_count > 0:
         soup = BeautifulSoup(response.text, 'html.parser')
         for span in soup.find_all('span'):
@@ -251,10 +250,7 @@ def parse(request):
         questions = soup.find_all('div', class_='qblock')
 
         for question in questions:
-            q += 1
             question_id = question.get('id')[1:] if question.get('id') else ""
-            if question_id == "0CB842":
-                print(q)
             img_number = 0
             task_number += 1
             problem_html = ""
