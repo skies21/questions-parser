@@ -193,19 +193,35 @@ def remove_special_characters(problem_html):
 
 
 def clean_problem_char(problem_text):
+    # Парсим входной текст как HTML
+    soup = BeautifulSoup(problem_text, 'html.parser')
+
     # Определяем словарь замены для символа � в контексте
-    replacements = {
+    replace_dict = {
         'о�ь': 'л',  # "бо�ьш" → "больш"
         'о�т': 'и',  # "сто�т" → "стоит"
         'у�е': 'ж',  # "у�е" → "уже"
         'y�l': "'",  # "they�ll" → "they'll"
     }
 
-    # Выполняем замену для каждого шаблона из словаря
-    for pattern, replacement in replacements.items():
-        problem_text = re.sub(pattern, replacement, problem_text)
+    # Убираем теги <span> из текста
+    for span in soup.find_all('span'):
+        span.unwrap()
 
-    return problem_text
+    # Ищем все теги, содержащие символ �
+    tags_with_special_char = soup.find_all(text=re.compile('�'))
+
+    for tag in tags_with_special_char:
+        tag_text = tag.strip()
+
+        # Проходим по всем ключам из словаря замены
+        for key, replacement in replace_dict.items():
+            if key in tag_text:
+                # Заменяем соответствующую подстроку в тексте
+                tag.replace_with(tag_text.replace(key, replacement))
+
+    # Возвращаем изменённый HTML
+    return str(soup)
 
 
 def parse(request):
@@ -235,7 +251,10 @@ def parse(request):
         questions = soup.find_all('div', class_='qblock')
 
         for question in questions:
+            q += 1
             question_id = question.get('id')[1:] if question.get('id') else ""
+            if question_id == "0CB842":
+                print(q)
             img_number = 0
             task_number += 1
             problem_html = ""
