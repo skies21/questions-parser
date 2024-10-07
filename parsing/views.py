@@ -324,14 +324,25 @@ def parse(request):
                 for script in script_tags:
                     if script.string and re.search(r"ShowPictureQ|ShowPicture", script.string):
                         img_match = re.findall(r"ShowPicture(Q)?\(['\"](.*?)['\"]", script.string)
+
+                        # Проверяем наличие тега <u> перед скриптом
+                        previous_u_tag = script.find_previous('u')
+                        u_text = previous_u_tag.get_text(strip=True) if previous_u_tag else None
+
                         for img_src_tuple in img_match:
                             img_src = img_src_tuple[1]
                             img_url = f"https://{exam_type}.fipi.ru/{img_src}"
                             img_urls.append(img_url)
-                            img_file_path = f"{question_id}/{img_number}.gif" if question_id else \
-                                f"{number_in_group}/{img_number}.gif"
+
+                            img_file_path = f"{question_id}/{img_number}.gif" if question_id else f"{number_in_group}/{img_number}.gif"
                             img_paths.append(img_file_path)
+
                             img_tag_html = f'<sub><img src="{img_file_path}"/></sub>'
+
+                            # Вставляем текст из <u> до или после изображения
+                            if u_text:
+                                img_tag_html = f'<span>{u_text}</span>{img_tag_html}'  # Вставить текст перед картинкой
+                                previous_u_tag.extract()  # Удаляем тег <u> после вставки текста
 
                             # Заменяем скрипт на HTML-тег с изображением
                             problem_html = re.sub(re.escape(str(script)), img_tag_html, problem_html,
