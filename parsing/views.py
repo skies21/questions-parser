@@ -174,53 +174,46 @@ def remove_duplicate_paragraphs(problem_html):
     return str(soup)
 
 
-def remove_special_characters(problem_html):
+def remove_special_characters_tags(problem_html):
     # Парсим HTML-код
     soup = BeautifulSoup(problem_html, 'html.parser')
 
-    # Удаляем теги <mi> с символом �
-    for mi_tag in soup.find_all('mi'):
-        if mi_tag.text == '�':
-            mi_tag.decompose()  # Удаляем тег <mi>
-
-    # Удаляем теги <semantics> с <mi> внутри
-    for semantics_tag in soup.find_all('semantics'):
-        mi_inside = semantics_tag.find('mi')
-        if mi_inside and mi_inside.text == '�':
-            semantics_tag.decompose()  # Удаляем тег <semantics>
+    # Удаляем теги <mi>, <semantics>, <math>, если внутри есть символ �
+    for tag in soup.find_all(['mi', 'semantics', 'math']):
+        if '�' in tag.get_text():
+            tag.unwrap()  # Удаляем тег, если найден символ �
 
     return str(soup)
 
 
 def clean_problem_char(problem_text):
-    # Парсим входной текст как HTML
-    soup = BeautifulSoup(problem_text, 'html.parser')
+    # Удаляем специальные символы и теги
+    problem_text = remove_special_characters_tags(problem_text)
 
     # Определяем словарь замены для символа � в контексте
     replace_dict = {
-        'о�ь': 'л',  # "бо�ьш" → "больш"
-        'о�т': 'и',  # "сто�т" → "стоит"
-        'у�е': 'ж',  # "у�е" → "уже"
-        'y�l': "'",  # "they�ll" → "they'll"
+        'бо�ьш': 'больш',  # "бо�ьш" → "больш"
+        'сто�т': 'стоит',  # "сто�т" → "стоит"
+        'у�е': 'уже',  # "у�е" → "уже"
+        'they�ll': "they'll"  # "they�ll" → "they'll"
     }
 
-    # Убираем теги <span> из текста
-    for span in soup.find_all('span'):
-        span.unwrap()
+    # Парсим входной текст как HTML
+    soup = BeautifulSoup(problem_text, 'html.parser')
 
-    # Ищем все теги, содержащие символ �
-    tags_with_special_char = soup.find_all(text=re.compile('�'))
-
-    for tag in tags_with_special_char:
+    # Ищем все текстовые элементы
+    for tag in soup.find_all(text=True):
         tag_text = tag.strip()
+        tag_text = re.sub(r'\s*�\s*', '�', tag_text)
 
         # Проходим по всем ключам из словаря замены
         for key, replacement in replace_dict.items():
+            # Заменяем только точные вхождения ключа
             if key in tag_text:
-                # Заменяем соответствующую подстроку в тексте
-                tag.replace_with(tag_text.replace(key, replacement))
+                updated_text = tag_text.replace(key, replacement)
+                tag.replace_with(updated_text)
 
-    # Возвращаем изменённый HTML
+    # Возвращаем изменённый HTML как строку
     return str(soup)
 
 
@@ -356,11 +349,8 @@ def parse(request):
             problem_html = remove_non_radio_duplicate_images(problem_html)
             problem_html = remove_duplicate_paragraphs(problem_html)
             problem_html = clean_problem_text(problem_html)
-            problem_html = remove_special_characters(problem_html)
-
-            problem_ids = ['182CF4', '3B5E5D', '83B1F6', '5251BA', '4487DB']
-            if question_id in problem_ids:
-                question_text_combined = clean_problem_char(question_text_combined)
+            problem_html = clean_problem_char(problem_html)
+            question_text_combined = clean_problem_char(question_text_combined)
 
             new_data = {
                 "id": question_id,
