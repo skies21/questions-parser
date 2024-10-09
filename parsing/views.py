@@ -1,3 +1,5 @@
+import os
+
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
 import requests
@@ -217,6 +219,63 @@ def clean_problem_char(problem_text):
     return str(soup)
 
 
+def process_table_content(table_soup):
+    # Обработать формулы
+    maths = table_soup.find_all('m:math')  # Найти все формулы
+    for math in maths:
+        for child in math.findChildren():
+            if 'm:' in child.name:
+                child.name = child.name.replace('m:', '')  # Убираем префикс m:
+        math.name = math.name.replace('m:', '')  # Убираем префикс m: у самой формулы
+
+    # Удалить ненужные атрибуты и теги
+    for child in table_soup.findChildren():
+        # Убрать заливку
+        if 'bgcolor' in child.attrs:
+            del child['bgcolor']
+
+        # Убрать подсказку
+        if 'id' in child.attrs and child['id'] == 'hint':
+            child.decompose()  # Удаляем тег с подсказкой
+
+    return table_soup
+
+
+def find_and_extract_tables(question):
+    tables_to_move = []
+
+    # Ищем таблицу с <u> заголовками
+    correspond_table = ""
+    header = question.b.u if question.b else None
+    if header:
+        parent = header.parent
+        headers = []
+        # Ищем таблицу, у которой есть 2 заголовка
+        while parent and (parent.name != 'table' or len(headers) < 2):
+            parent = parent.parent
+            headers = parent.find_all('u') if parent else []
+
+        # Если нашли нужную таблицу
+        if parent and parent.name == 'table' and len(headers) >= 2:
+            correspond_table = parent
+            correspond_table.extract()
+            tables_to_move.append(correspond_table)
+
+    # Ищем и вырезаем таблицу с классом answer-table, если она существует
+    answer_table = question.find('table', class_='answer-table')
+    if answer_table:
+        answer_table.extract()
+        tables_to_move.append(answer_table)
+
+    # Обрабатываем каждую таблицу
+    processed_tables = []
+    for table in tables_to_move:
+        processed_table = process_table_content(table)
+        processed_tables.append(processed_table)
+
+    return processed_tables
+
+
 def parse(request):
     bank_type = request.GET.get('bank')
     exam_type = 'ege' if 'ege' in bank_type else 'oge'
@@ -249,6 +308,8 @@ def parse(request):
             problem_html = ""
             img_paths = []
             img_urls = []
+            # Ищем и вырезаем таблицы соответствий и ответов
+            tables_to_move = find_and_extract_tables(question)
 
             hint = question.find_next('div', class_='hint').get_text(strip=True)
 
@@ -319,30 +380,33 @@ def parse(request):
                     img_number = process_image(p, question_id, number_in_group, img_number, img_paths, img_urls,
                                                exam_type)
 
+                # Добавляем таблицы в problem_html
+                for table in tables_to_move:
+                    problem_html += str(table)
+
                 # Обработка скриптов с картинками
-                script_tags = p.find_all('script')
+                if tables_to_move:
+                    correspond_table_soup = BeautifulSoup(problem_html, 'html.parser')
+                    script_tags = correspond_table_soup.find_all('script')
+                else:
+                    script_tags = p.find_all('script')
                 for script in script_tags:
                     if script.string and re.search(r"ShowPictureQ|ShowPicture", script.string):
                         img_match = re.findall(r"ShowPicture(Q)?\(['\"](.*?)['\"]", script.string)
-
-                        # Проверяем наличие тега <u> перед скриптом
-                        previous_u_tag = script.find_previous('u')
-                        u_text = previous_u_tag.get_text(strip=True) if previous_u_tag else None
 
                         for img_src_tuple in img_match:
                             img_src = img_src_tuple[1]
                             img_url = f"https://{exam_type}.fipi.ru/{img_src}"
                             img_urls.append(img_url)
 
-                            img_file_path = f"{question_id}/{img_number}.gif" if question_id else f"{number_in_group}/{img_number}.gif"
+                            # Получаем расширение файла из оригинальной ссылки (gif, png и т.д.)
+                            img_extension = os.path.splitext(img_src)[1]  # Вернет '.gif', '.png' и т.д.
+
+                            # Формируем путь для сохранения изображения с правильным расширением
+                            img_file_path = f"{question_id}/{img_number}{img_extension}" if question_id else f"{number_in_group}/{img_number}{img_extension}"
                             img_paths.append(img_file_path)
 
                             img_tag_html = f'<sub><img src="{img_file_path}"/></sub>'
-
-                            # Вставляем текст из <u> до или после изображения
-                            if u_text:
-                                img_tag_html = f'<span>{u_text}</span>{img_tag_html}'  # Вставить текст перед картинкой
-                                previous_u_tag.extract()  # Удаляем тег <u> после вставки текста
 
                             # Заменяем скрипт на HTML-тег с изображением
                             problem_html = re.sub(re.escape(str(script)), img_tag_html, problem_html,
