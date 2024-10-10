@@ -387,9 +387,11 @@ def parse(request):
                     img_number = process_image(p, question_id, number_in_group, img_number, img_paths, img_urls,
                                                exam_type)
 
-                # Добавляем таблицы в problem_html
+                # Добавляем таблицы в problem_html только если их там еще нет
                 for table in tables_to_move:
-                    problem_html += str(table)
+                    table_str = str(table)  # Преобразуем таблицу в строку
+                    if table_str not in problem_html:  # Проверяем, нет ли уже этой таблицы
+                        problem_html += table_str
 
                 # Обработка скриптов с картинками
                 if tables_to_move:
