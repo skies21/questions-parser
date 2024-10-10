@@ -219,6 +219,42 @@ def clean_problem_char(problem_text):
     return str(soup)
 
 
+def extract_b_u_text(table):
+    # Извлекаем текст только из тегов <b> и <u> внутри таблицы
+    b_tags = table.find_all('b')
+    u_tags = table.find_all('u')
+
+    # Объединяем тексты из всех тегов <b> и <u>
+    b_text = ' '.join([b.get_text(strip=True) for b in b_tags])
+    u_text = ' '.join([u.get_text(strip=True) for u in u_tags])
+
+    # Возвращаем объединенный текст как критерий уникальности
+    return b_text + " " + u_text
+
+
+def remove_duplicate_tables(problem_html):
+    # Парсим HTML-код
+    soup = BeautifulSoup(problem_html, 'html.parser')
+
+    # Находим все таблицы
+    tables = soup.find_all('table')
+
+    seen_tables = set()
+    for table in tables:
+        # Извлекаем текст из тегов <b> и <u> для проверки уникальности
+        bu_text = extract_b_u_text(table)
+
+        # Если таблица с таким содержимым уже встречалась, удаляем её
+        if bu_text in seen_tables:
+            table.decompose()
+        else:
+            # Добавляем уникальный текст таблицы в множество для проверки
+            seen_tables.add(bu_text)
+
+    # Возвращаем обновленный HTML
+    return str(soup)
+
+
 def process_table_content(table_soup):
     # Обработать формулы
     maths = table_soup.find_all('m:math')  # Найти все формулы
@@ -392,6 +428,7 @@ def parse(request):
                     table_str = str(table)  # Преобразуем таблицу в строку
                     if table_str not in problem_html:  # Проверяем, нет ли уже этой таблицы
                         problem_html += table_str
+                problem_html = remove_duplicate_tables(problem_html)
 
                 # Обработка скриптов с картинками
                 if tables_to_move:
