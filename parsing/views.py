@@ -246,7 +246,14 @@ def find_and_extract_tables(question):
 
     # Ищем таблицу с <u> заголовками
     correspond_table = ""
-    header = question.b.u if question.b else None
+    bs = question.find_all('b')  # Ищем все <b> теги в вопросе
+
+    # Удаляем <b> теги, пока первый не имеет <u>
+    while bs and not bs[0].u:
+        del bs[0]
+
+    header = bs[0].u if bs else None  # Получаем заголовок, если он существует
+
     if header:
         parent = header.parent
         headers = []
