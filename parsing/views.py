@@ -443,36 +443,75 @@ def parse(request):
                 problem_html = remove_duplicate_tables(problem_html)
 
                 # Обработка скриптов с картинками
+                loc = None
                 if tables_to_move:
                     correspond_table_soup = BeautifulSoup(problem_html, 'html.parser')
                     script_tags = correspond_table_soup.find_all('script')
                 else:
                     script_tags = p.find_all('script')
                 for script in script_tags:
-                    if script.string and re.search(r"ShowPictureQ|ShowPicture", script.string):
-                        img_match = re.findall(r"ShowPicture(Q)?\(['\"](.*?)['\"]", script.string)
+                    if script.string:
+                        script_str = script.string
 
-                        for img_src_tuple in img_match:
-                            img_src = img_src_tuple[1]
-                            img_url = f"https://{exam_type}.fipi.ru/{img_src}"
-                            img_urls.append(img_url)
+                        # Ищем базовую локацию в скрипте с files_abs_location
+                        if 'files_abs_location' in script_str:
+                            loc_match = re.search(r'files_abs_location\s*=\s*\'(.*?)\';', script_str)
+                            if loc_match:
+                                loc = loc_match[1]  # Сохраняем базовую локацию
+                            script.extract()  # Удаляем этот скрипт
 
-                            # Получаем расширение файла из оригинальной ссылки (gif, png и т.д.)
-                            img_extension = os.path.splitext(img_src)[1]  # Вернет '.gif', '.png' и т.д.
+                        # Обрабатываем скрипты ShowPictureQ
+                        elif re.search(r"ShowPictureQ\(['\"](.*?)['\"]", script_str):
+                            img_match = re.findall(r"ShowPictureQ\(['\"](.*?)['\"]", script_str)
 
-                            # Формируем путь для сохранения изображения с правильным расширением
-                            img_file_path = f"{question_id}/{img_number}{img_extension}" if question_id else f"{number_in_group}/{img_number}{img_extension}"
-                            img_paths.append(img_file_path)
+                            for img_src in img_match:
+                                img_url = f"https://{exam_type}.fipi.ru/{img_src}"
+                                img_urls.append(img_url)
 
-                            img_tag_html = f'<sub><img src="{img_file_path}"/></sub>'
+                                # Получаем расширение файла (gif, png и т.д.)
+                                img_extension = os.path.splitext(img_src)[1]
 
-                            # Заменяем скрипт на HTML-тег с изображением
-                            problem_html = re.sub(re.escape(str(script)), img_tag_html, problem_html,
-                                                  flags=re.IGNORECASE)
-                            img_number += 1
+                                # Формируем путь для сохранения изображения
+                                img_file_path = f"{question_id}/{img_number}{img_extension}" if question_id else f"{number_in_group}/{img_number}{img_extension}"
+                                img_paths.append(img_file_path)
 
-                        # Удаляем тег скрипта после обработки
-                        script.extract()
+                                # Создаем тег изображения и заменяем скрипт
+                                img_tag_html = f'<sub><img src="{img_file_path}"/></sub>'
+                                problem_html = re.sub(re.escape(str(script)), img_tag_html, problem_html,
+                                                      flags=re.IGNORECASE)
+                                img_number += 1
+
+                            # Удаляем обработанный тег скрипта
+                            script.extract()
+
+                        # Обрабатываем скрипты ShowPicture
+                        elif re.search(r"ShowPicture\(['\"](.*?)['\"]", script_str):
+                            img_match = re.findall(r"ShowPicture\(['\"](.*?)['\"]", script_str)
+
+                            for img_src in img_match:
+                                # Если была найдена базовая локация, используем её
+                                if loc:
+                                    img_url = f"https://{exam_type}.fipi.ru/{loc}{img_src}"
+                                else:
+                                    img_url = f"https://{exam_type}.fipi.ru/{img_src}"
+
+                                img_urls.append(img_url)
+
+                                # Получаем расширение файла (gif, png и т.д.)
+                                img_extension = os.path.splitext(img_src)[1]
+
+                                # Формируем путь для сохранения изображения
+                                img_file_path = f"{question_id}/{img_number}{img_extension}" if question_id else f"{number_in_group}/{img_number}{img_extension}"
+                                img_paths.append(img_file_path)
+
+                                # Создаем тег изображения и заменяем скрипт
+                                img_tag_html = f'<sub><img src="{img_file_path}"/></sub>'
+                                problem_html = re.sub(re.escape(str(script)), img_tag_html, problem_html,
+                                                      flags=re.IGNORECASE)
+                                img_number += 1
+
+                            # Удаляем обработанный тег скрипта
+                            script.extract()
 
             question_text = [p.get_text(strip=True) for p in p_elements] if p_elements else [""]
             question_text_combined = "; ".join(question_text)
