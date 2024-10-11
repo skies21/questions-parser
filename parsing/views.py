@@ -80,15 +80,27 @@ def process_table(p, problem_html, table_found):
 
 
 def process_image(p, question_id, number_in_group, img_number, img_paths, img_urls, exam_type):
-    """Обработка изображений"""
+    """Обработка изображений с учетом расширений"""
     img_tag = p.find('img')
     if img_tag and img_tag.get('src'):
-        img_file_path = f"{question_id}/{img_number}.gif" if question_id else f"{number_in_group}/{img_number}.gif"
+        # Извлекаем расширение из src
+        img_src = img_tag['src']
+        img_extension = os.path.splitext(img_src)[1]  # Получаем расширение файла (например, '.gif', '.png')
+
+        # Формируем путь для сохранения изображения с правильным расширением
+        img_file_path = f"{question_id}/{img_number}{img_extension}" if question_id else f"{number_in_group}/{img_number}{img_extension}"
         img_paths.append(img_file_path)
-        img_url = f"https://{exam_type}.fipi.ru/{img_tag['src']}"
+
+        # Формируем полный URL для загрузки изображения
+        img_url = f"https://{exam_type}.fipi.ru/{img_src}"
         img_urls.append(img_url)
+
+        # Обновляем атрибут 'src' тега img, заменяя его на путь сохранения
         img_tag['src'] = img_file_path
+
+        # Увеличиваем счетчик изображений
         img_number += 1
+
     return img_number
 
 
