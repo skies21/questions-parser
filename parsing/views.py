@@ -104,14 +104,6 @@ def process_image(p, question_id, number_in_group, img_number, img_paths, img_ur
     return img_number
 
 
-def process_content(p):
-    """Обработка контента элемента"""
-    p_html = str(clean_m_tags(p))
-    if 'MsoNormal' in p.get('class', []) or 'Basis' in p.get('class', []):
-        p_html = ''.join([str(child) for child in p.children])
-    return p_html
-
-
 def move_tables_to_end(problem_html):
     # Парсим HTML
     soup = BeautifulSoup(problem_html, 'html.parser')
@@ -231,19 +223,6 @@ def clean_problem_char(problem_text):
     return str(soup)
 
 
-def extract_b_u_text(table):
-    # Извлекаем текст только из тегов <b> и <u> внутри таблицы
-    b_tags = table.find_all('b')
-    u_tags = table.find_all('u')
-
-    # Объединяем тексты из всех тегов <b> и <u>
-    b_text = ' '.join([b.get_text(strip=True) for b in b_tags])
-    u_text = ' '.join([u.get_text(strip=True) for u in u_tags])
-
-    # Возвращаем объединенный текст как критерий уникальности
-    return b_text + " " + u_text
-
-
 def remove_duplicate_tables(problem_html):
     # Парсим HTML-код
     soup = BeautifulSoup(problem_html, 'html.parser')
@@ -253,15 +232,15 @@ def remove_duplicate_tables(problem_html):
 
     seen_tables = set()
     for table in tables:
-        # Извлекаем текст из тегов <b> и <u> для проверки уникальности
-        bu_text = extract_b_u_text(table)
+        # Извлекаем полный текст таблицы
+        table_text = table.get_text(separator=' ').strip()
 
         # Если таблица с таким содержимым уже встречалась, удаляем её
-        if bu_text in seen_tables:
+        if table_text in seen_tables:
             table.decompose()
         else:
             # Добавляем уникальный текст таблицы в множество для проверки
-            seen_tables.add(bu_text)
+            seen_tables.add(table_text)
 
     # Возвращаем обновленный HTML
     return str(soup)
@@ -348,7 +327,7 @@ def parse(request):
     match = q_count_re.search(response.text)
     q_count = int(match.group(1))
     parsed_data = []
-    task_number = 1
+
     while q_count > 0:
         soup = BeautifulSoup(response.text, 'html.parser')
         for span in soup.find_all('span'):
@@ -359,10 +338,10 @@ def parse(request):
         for question in questions:
             question_id = question.get('id')[1:] if question.get('id') else ""
             img_number = 0
-            task_number += 1
             problem_html = ""
             img_paths = []
             img_urls = []
+
             # Ищем и вырезаем таблицы соответствий и ответов
             tables_to_move = find_and_extract_tables(question)
 
@@ -419,7 +398,7 @@ def parse(request):
                 if elements is p_elements and ('MsoNormal' in p.get('class', []) or 'Basis' in p.get('class', [])):
                     if not p.find_parent('table', class_='MsoNormalTable') and not p.find_parent('table',
                                                                                                  class_='MsoTableGrid'):
-                        problem_html += process_content(p)
+                        problem_html += ''.join([str(child) for child in p.children])
                     else:
                         problem_html, table_found = process_table(p, problem_html, table_found)
 
@@ -428,7 +407,7 @@ def parse(request):
                 else:
                     if not p.find_parent('table', class_='MsoNormalTable') and not p.find_parent('table',
                                                                                                  class_='MsoTableGrid'):
-                        problem_html += process_content(p)
+                        problem_html += ''.join([str(child) for child in p.children])
                     else:
                         problem_html, table_found = process_table(p, problem_html, table_found)
 
