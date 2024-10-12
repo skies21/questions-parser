@@ -333,7 +333,6 @@ def parse(request):
 
     match = q_count_re.search(response.text)
     q_count = int(match.group(1))
-    q_count = 500
     parsed_data = []
 
     while q_count > 0:
@@ -345,8 +344,6 @@ def parse(request):
 
         for question in questions:
             question_id = question.get('id')[1:] if question.get('id') else ""
-            if question_id != "925604":
-                continue
             img_number = 0
             problem_html = ""
             img_paths = []
