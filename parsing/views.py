@@ -310,6 +310,11 @@ def find_and_extract_tables(question):
     return processed_tables
 
 
+def remove_math_prefix(html):
+    # Регулярное выражение для замены тегов <m:tag> и </m:tag> на <tag> и </tag>
+    return re.sub(r'</?m:([^>]+)>', r'<\1>', html)
+
+
 def parse(request):
     bank_type = request.GET.get('bank')
     exam_type = 'ege' if 'ege' in bank_type else 'oge'
@@ -480,6 +485,7 @@ def parse(request):
             problem_html = remove_duplicate_paragraphs(problem_html)
             problem_html = clean_problem_text(problem_html)
             problem_html = clean_problem_char(problem_html)
+            problem_html = remove_math_prefix(problem_html)
             question_text_combined = clean_problem_char(question_text_combined)
 
             new_data = {
