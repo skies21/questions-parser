@@ -182,14 +182,16 @@ def remove_duplicate_paragraphs(problem_html):
 
 def remove_special_characters_tags(problem_html):
     # Парсим HTML-код
-    soup = BeautifulSoup(problem_html, 'html.parser')
+    soup = BeautifulSoup(problem_html, 'html.parser', from_encoding='utf-8')
 
-    # Удаляем теги <mi>, <semantics>, <math>, если внутри есть символ �
-    for tag in soup.find_all(['mi', 'semantics', 'math']):
-        if '�' in tag.get_text():
-            tag.unwrap()  # Удаляем тег, если найден символ �
+    # Удаляем теги, если внутри есть символ замены
+    for tag in soup.find_all(['math', 'mstyle', 'semantics', 'mi']):
+        # Получаем текст тега и проверяем наличие символа замены
+        text_content = tag.get_text()
+        if '�' in text_content:
+            tag.unwrap()  # Удаляем тег, если найден символ замены
 
-    return str(soup)
+    return str(soup).encode('utf-8').decode('utf-8')
 
 
 def clean_problem_char(problem_text):
@@ -331,6 +333,7 @@ def parse(request):
 
     match = q_count_re.search(response.text)
     q_count = int(match.group(1))
+    q_count = 500
     parsed_data = []
 
     while q_count > 0:
@@ -342,6 +345,8 @@ def parse(request):
 
         for question in questions:
             question_id = question.get('id')[1:] if question.get('id') else ""
+            if question_id != "925604":
+                continue
             img_number = 0
             problem_html = ""
             img_paths = []
@@ -484,8 +489,8 @@ def parse(request):
             problem_html = remove_non_radio_duplicate_images(problem_html)
             problem_html = remove_duplicate_paragraphs(problem_html)
             problem_html = clean_problem_text(problem_html)
-            problem_html = clean_problem_char(problem_html)
             problem_html = remove_math_prefix(problem_html)
+            problem_html = clean_problem_char(problem_html)
             question_text_combined = clean_problem_char(question_text_combined)
 
             new_data = {
