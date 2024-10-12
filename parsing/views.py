@@ -182,7 +182,7 @@ def remove_duplicate_paragraphs(problem_html):
 
 def remove_special_characters_tags(problem_html):
     # Парсим HTML-код
-    soup = BeautifulSoup(problem_html, 'html.parser', from_encoding='utf-8')
+    soup = BeautifulSoup(problem_html, 'html.parser')
 
     # Удаляем теги, если внутри есть символ замены
     for tag in soup.find_all(['math', 'mstyle', 'semantics', 'mi']):
@@ -191,7 +191,7 @@ def remove_special_characters_tags(problem_html):
         if '�' in text_content:
             tag.unwrap()  # Удаляем тег, если найден символ замены
 
-    return str(soup).encode('utf-8').decode('utf-8')
+    return str(soup)
 
 
 def clean_problem_char(problem_text):
@@ -272,9 +272,6 @@ def process_table_content(table_soup):
 
 def find_and_extract_tables(question):
     tables_to_move = []
-
-    # Ищем таблицу с <u> заголовками
-    correspond_table = ""
     bs = question.find_all('b')  # Ищем все <b> теги в вопросе
 
     # Удаляем <b> теги, пока первый не имеет <u>
@@ -313,8 +310,23 @@ def find_and_extract_tables(question):
 
 
 def remove_math_prefix(html):
-    # Регулярное выражение для замены тегов <m:tag> и </m:tag> на <tag> и </tag>
-    return re.sub(r'</?m:([^>]+)>', r'<\1>', html)
+    # Парсим HTML-код
+    soup = BeautifulSoup(html, 'html.parser')
+
+    # Находим все теги с префиксом 'm:'
+    maths = soup.find_all(lambda tag: tag.name.startswith('m:'))
+
+    for math in maths:
+        # Убираем префикс 'm:' из имени тега
+        math.name = math.name.replace('m:', '')
+
+        # Также проходим по дочерним элементам, чтобы удалить префиксы
+        for child in math.findChildren():
+            if child.name.startswith('m:'):
+                child.name = child.name.replace('m:', '')
+
+    # Возвращаем HTML как строку
+    return str(soup)
 
 
 def parse(request):
