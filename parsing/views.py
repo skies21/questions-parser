@@ -249,6 +249,9 @@ def remove_duplicate_tables(problem_html):
 
 
 def process_table_content(table_soup):
+    for p_tag in table_soup.find_all('p'):
+        p_tag.unwrap()
+
     # Обработать формулы
     maths = table_soup.find_all('m:math')  # Найти все формулы
     for math in maths:
