@@ -426,7 +426,15 @@ def parse(request):
                 if elements is p_elements and ('MsoNormal' in p.get('class', []) or 'Basis' in p.get('class', [])):
                     if not p.find_parent('table', class_='MsoNormalTable') and not p.find_parent('table',
                                                                                                  class_='MsoTableGrid'):
-                        problem_html += ''.join([str(child) for child in p.children])
+                        # Проверка на наличие списка
+                        text = p.get_text()
+                        if text.startswith('·'):
+                            # Добавляем пункт списка
+                            problem_html += f'<li>{text.replace("·", "").strip()}</li>'
+                        else:
+                            # Просто добавляем содержимое параграфа
+                            problem_html += ''.join([str(child) for child in p.children])
+
                     else:
                         problem_html, table_found = process_table(p, problem_html, table_found)
 
@@ -435,7 +443,12 @@ def parse(request):
                 else:
                     if not p.find_parent('table', class_='MsoNormalTable') and not p.find_parent('table',
                                                                                                  class_='MsoTableGrid'):
-                        problem_html += ''.join([str(child) for child in p.children])
+                        text = p.get_text()
+                        if text.startswith('·'):
+                            problem_html += f'<li>{text.replace("·", "").strip()}</li>'
+                        else:
+                            problem_html += ''.join([str(child) for child in p.children])
+
                     else:
                         problem_html, table_found = process_table(p, problem_html, table_found)
 
