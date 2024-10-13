@@ -421,6 +421,8 @@ def parse(request):
             elements = p_elements if p_elements else span_elements
             table_found = False
 
+            in_list = False
+
             for p in elements:
                 # Проверяем, является ли элемент параграфом задания или частью таблицы ответов
                 if elements is p_elements and ('MsoNormal' in p.get('class', []) or 'Basis' in p.get('class', [])):
@@ -429,81 +431,114 @@ def parse(request):
                         # Проверка на наличие списка
                         text = p.get_text()
                         if text.startswith('·'):
+                            # Если список еще не начат, добавляем тег <ul>
+                            if not in_list:
+                                problem_html += '<ul>'
+                                in_list = True
+
                             # Добавляем пункт списка
                             problem_html += f'<li>{text.replace("·", "").strip()}</li>'
+
                         else:
+                            # Если список был начат, закрываем его перед добавлением обычного текста
+                            if in_list:
+                                problem_html += '</ul>'
+                                in_list = False
+
                             # Просто добавляем содержимое параграфа
                             problem_html += ''.join([str(child) for child in p.children])
 
                     else:
+                        # Если нашли таблицу, закрываем список перед таблицей
+                        if in_list:
+                            problem_html += '</ul>'
+                            in_list = False
+
                         problem_html, table_found = process_table(p, problem_html, table_found)
 
                     img_number = process_image(p, question_id, number_in_group, img_number, img_paths, img_urls,
                                                exam_type)
+
                 else:
                     if not p.find_parent('table', class_='MsoNormalTable') and not p.find_parent('table',
                                                                                                  class_='MsoTableGrid'):
                         text = p.get_text()
                         if text.startswith('·'):
+                            if not in_list:
+                                problem_html += '<ul>'
+                                in_list = True
+
                             problem_html += f'<li>{text.replace("·", "").strip()}</li>'
+
                         else:
+                            if in_list:
+                                problem_html += '</ul>'
+                                in_list = False
+
                             problem_html += ''.join([str(child) for child in p.children])
 
                     else:
+                        if in_list:
+                            problem_html += '</ul>'
+                            in_list = False
+
                         problem_html, table_found = process_table(p, problem_html, table_found)
 
                     img_number = process_image(p, question_id, number_in_group, img_number, img_paths, img_urls,
                                                exam_type)
 
-                # Обработка скриптов с картинками
-                if tables_to_move:
-                    correspond_table_soup = BeautifulSoup(problem_html, 'html.parser')
-                    script_tags = correspond_table_soup.find_all('script')
-                else:
-                    script_tags = p.find_all('script')
+            if in_list:
+                problem_html += '</ul>'
 
-                # Инициализируем переменную для хранения files_abs_location
-                files_abs_location = None
+            # Обработка скриптов с картинками
+            if tables_to_move:
+                correspond_table_soup = BeautifulSoup(problem_html, 'html.parser')
+                script_tags = correspond_table_soup.find_all('script')
+            else:
+                script_tags = question.find_all('script')
 
-                # Поиск скрипта с files_abs_location
-                for script in question.find_all('script'):
-                    if script.string and re.search(r"files_abs_location", script.string):
-                        # Ищем значение переменной files_abs_location
-                        files_abs_match = re.search(r"files_abs_location=['\"](.*?)['\"];", script.string)
-                        if files_abs_match:
-                            files_abs_location = files_abs_match.group(1)  # Сохраняем путь из скрипта
+            # Инициализируем переменную для хранения files_abs_location
+            files_abs_location = None
 
-                # Основная обработка скриптов ShowPicture и ShowPictureQ
-                for script in script_tags:
-                    if script.string and re.search(r"ShowPictureQ|ShowPicture", script.string):
-                        img_match = re.findall(r"ShowPicture(Q)?\(['\"](.*?)['\"]", script.string)
+            # Поиск скрипта с files_abs_location
+            for script in question.find_all('script'):
+                if script.string and re.search(r"files_abs_location", script.string):
+                    # Ищем значение переменной files_abs_location
+                    files_abs_match = re.search(r"files_abs_location=['\"](.*?)['\"];", script.string)
+                    if files_abs_match:
+                        files_abs_location = files_abs_match.group(1)  # Сохраняем путь из скрипта
 
-                        for img_src_tuple in img_match:
-                            img_src = img_src_tuple[1]
+            # Основная обработка скриптов ShowPicture и ShowPictureQ
+            for script in script_tags:
+                if script.string and re.search(r"ShowPictureQ|ShowPicture", script.string):
+                    img_match = re.findall(r"ShowPicture(Q)?\(['\"](.*?)['\"]", script.string)
 
-                            # Если найден files_abs_location, добавляем его к пути
-                            if files_abs_location:
-                                img_src = files_abs_location + img_src
+                    for img_src_tuple in img_match:
+                        img_src = img_src_tuple[1]
 
-                            img_url = f"https://{exam_type}.fipi.ru/{img_src}"
-                            img_urls.append(img_url)
+                        # Если найден files_abs_location, добавляем его к пути
+                        if files_abs_location:
+                            img_src = files_abs_location + img_src
 
-                            # Получаем расширение файла из оригинальной ссылки (gif, png и т.д.)
-                            img_extension = os.path.splitext(img_src)[1]  # Вернет '.gif', '.png' и т.д.
+                        img_url = f"https://{exam_type}.fipi.ru/{img_src}"
+                        img_urls.append(img_url)
 
-                            # Формируем путь для сохранения изображения с правильным расширением
-                            img_file_path = f"{question_id}/{img_number}{img_extension}" if question_id else f"{number_in_group}/{img_number}{img_extension}"
-                            img_paths.append(img_file_path)
+                        # Получаем расширение файла из оригинальной ссылки (gif, png и т.д.)
+                        img_extension = os.path.splitext(img_src)[1]  # Вернет '.gif', '.png' и т.д.
 
-                            img_tag_html = f'<sub><img src="{img_file_path}"/></sub>'
+                        # Формируем путь для сохранения изображения с правильным расширением
+                        img_file_path = f"{question_id}/{img_number}{img_extension}" if question_id else f"{number_in_group}/{img_number}{img_extension}"
+                        img_paths.append(img_file_path)
 
-                            # Заменяем скрипт на HTML-тег с изображением
-                            problem_html = re.sub(re.escape(str(script)), img_tag_html, problem_html,
-                                                  flags=re.IGNORECASE)
-                            img_number += 1
+                        img_tag_html = f'<sub><img src="{img_file_path}"/></sub>'
 
-                        # Удаляем тег скрипта после обработки
-                        script.extract()
+                        # Заменяем скрипт на HTML-тег с изображением
+                        problem_html = re.sub(re.escape(str(script)), img_tag_html, problem_html,
+                                              flags=re.IGNORECASE)
+                        img_number += 1
+
+                    # Удаляем тег скрипта после обработки
+                    script.extract()
 
             problem_html = append_tables_if_not_exist(problem_html, tables_to_move)
             problem_html = remove_duplicate_tables(problem_html)
