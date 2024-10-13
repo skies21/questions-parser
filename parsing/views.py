@@ -448,8 +448,8 @@ def parse(request):
                                 problem_html += '</ul>'
                                 in_list = False
 
-                            # Просто добавляем содержимое параграфа
-                            problem_html += ''.join([str(child) for child in p.children])
+                            # Добавляем содержимое параграфа
+                            problem_html += f'<p>{"".join([str(child) for child in p.children])}</p>'
 
                     else:
                         # Если нашли таблицу, закрываем список перед таблицей
@@ -478,7 +478,7 @@ def parse(request):
                                 problem_html += '</ul>'
                                 in_list = False
 
-                            problem_html += ''.join([str(child) for child in p.children])
+                            problem_html += f'<p>{"".join([str(child) for child in p.children])}</p>'
 
                     else:
                         if in_list:
