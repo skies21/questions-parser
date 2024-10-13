@@ -329,6 +329,15 @@ def remove_math_prefix(html):
     return str(soup)
 
 
+def append_tables_if_not_exist(problem_html, tables_to_move):
+    # Гарантируем, что таблицы будут добавлены в конец
+    for table in tables_to_move:
+        table_str = str(table)  # Преобразуем таблицу в строку
+        if table_str not in problem_html:  # Проверяем, нет ли уже этой таблицы
+            problem_html = problem_html.strip() + table_str  # Добавляем в конец
+    return problem_html
+
+
 def parse(request):
     bank_type = request.GET.get('bank')
     exam_type = 'ege' if 'ege' in bank_type else 'oge'
@@ -433,13 +442,6 @@ def parse(request):
                     img_number = process_image(p, question_id, number_in_group, img_number, img_paths, img_urls,
                                                exam_type)
 
-                # Добавляем таблицы в problem_html только если их там еще нет
-                for table in tables_to_move:
-                    table_str = str(table)  # Преобразуем таблицу в строку
-                    if table_str not in problem_html:  # Проверяем, нет ли уже этой таблицы
-                        problem_html += table_str
-                problem_html = remove_duplicate_tables(problem_html)
-
                 # Обработка скриптов с картинками
                 if tables_to_move:
                     correspond_table_soup = BeautifulSoup(problem_html, 'html.parser')
@@ -489,6 +491,9 @@ def parse(request):
 
                         # Удаляем тег скрипта после обработки
                         script.extract()
+
+            problem_html = append_tables_if_not_exist(problem_html, tables_to_move)
+            problem_html = remove_duplicate_tables(problem_html)
 
             question_text = [p.get_text(strip=True) for p in p_elements] if p_elements else [""]
             question_text_combined = "; ".join(question_text)
