@@ -304,6 +304,18 @@ def find_and_extract_tables(question):
         answer_table.extract()
         tables_to_move.append(answer_table)
 
+    # Ищем все таблицы (включая те, которые не попали под предыдущие условия)
+    specific_tables = question.find_all('table', {
+        'border': '1',
+        'cellspacing': '0',
+        'cellpadding': '0',
+        'width': '100%'
+    })
+    for table in specific_tables:
+        if table not in tables_to_move:
+            table.extract()
+            tables_to_move.append(table)
+
     # Обрабатываем каждую таблицу
     processed_tables = []
     for table in tables_to_move:
