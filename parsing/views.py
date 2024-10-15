@@ -62,11 +62,8 @@ def clean_m_tags(soup):
     return soup
 
 
-def process_table(p, problem_html, table_found):
+def process_table(p, problem_html):
     """Обработка таблицы MsoNormalTable или MsoTableGrid."""
-    if table_found:
-        return problem_html, table_found
-
     table = p.find_parent('table', class_='MsoNormalTable')
     if not table:
         table = p.find_parent('table', class_='MsoTableGrid')
@@ -75,8 +72,8 @@ def process_table(p, problem_html, table_found):
         for tag in table.find_all(True):
             tag.attrs = {key: value for key, value in tag.attrs.items() if key not in ['class', 'style']}
         problem_html += str(table)
-        table_found = True
-    return problem_html, table_found
+
+    return problem_html
 
 
 def process_image(p, question_id, number_in_group, img_number, img_paths, img_urls, exam_type):
@@ -448,73 +445,43 @@ def parse(request):
             p_elements = question.find_all('p')
             span_elements = question.find_all('span')
             elements = p_elements if p_elements else span_elements
-            table_found = False
 
             in_list = False
 
             for p in elements:
                 # Проверяем, является ли элемент параграфом задания или частью таблицы ответов
-                if elements is p_elements and ('MsoNormal' in p.get('class', []) or 'Basis' in p.get('class', [])):
-                    if not p.find_parent('table', class_='MsoNormalTable') and not p.find_parent('table',
-                                                                                                 class_='MsoTableGrid'):
-                        # Проверка на наличие списка
-                        text = p.get_text()
-                        if text.startswith('·'):
-                            # Если список еще не начат, добавляем тег <ul>
-                            if not in_list:
-                                problem_html += '<ul>'
-                                in_list = True
+                if not p.find_parent('table', class_='MsoNormalTable') and not p.find_parent('table',
+                                                                                             class_='MsoTableGrid'):
+                    # Проверка на наличие списка
+                    text = p.get_text()
+                    if text.startswith('·'):
+                        # Если список еще не начат, добавляем тег <ul>
+                        if not in_list:
+                            problem_html += '<ul>'
+                            in_list = True
 
-                            # Добавляем пункт списка
-                            problem_html += f'<li>{text.replace("·", "").strip()}</li>'
-
-                        else:
-                            # Если список был начат, закрываем его перед добавлением обычного текста
-                            if in_list:
-                                problem_html += '</ul>'
-                                in_list = False
-
-                            # Добавляем содержимое параграфа
-                            problem_html += f'<p>{"".join([str(child) for child in p.children])}</p>'
+                        # Добавляем пункт списка
+                        problem_html += f'<li>{text.replace("·", "").strip()}</li>'
 
                     else:
-                        # Если нашли таблицу, закрываем список перед таблицей
+                        # Если список был начат, закрываем его перед добавлением обычного текста
                         if in_list:
                             problem_html += '</ul>'
                             in_list = False
 
-                        problem_html, table_found = process_table(p, problem_html, table_found)
-
-                    img_number = process_image(p, question_id, number_in_group, img_number, img_paths, img_urls,
-                                               exam_type)
+                        # Добавляем содержимое параграфа
+                        problem_html += '<p>' + ''.join([str(child) for child in p.children]) + '</p>'
 
                 else:
-                    if not p.find_parent('table', class_='MsoNormalTable') and not p.find_parent('table',
-                                                                                                 class_='MsoTableGrid'):
-                        text = p.get_text()
-                        if text.startswith('·'):
-                            if not in_list:
-                                problem_html += '<ul>'
-                                in_list = True
+                    # Если нашли таблицу, закрываем список перед таблицей
+                    if in_list:
+                        problem_html += '</ul>'
+                        in_list = False
 
-                            problem_html += f'<li>{text.replace("·", "").strip()}</li>'
+                    problem_html = process_table(p, problem_html)
 
-                        else:
-                            if in_list:
-                                problem_html += '</ul>'
-                                in_list = False
-
-                            problem_html += f'<p>{"".join([str(child) for child in p.children])}</p>'
-
-                    else:
-                        if in_list:
-                            problem_html += '</ul>'
-                            in_list = False
-
-                        problem_html, table_found = process_table(p, problem_html, table_found)
-
-                    img_number = process_image(p, question_id, number_in_group, img_number, img_paths, img_urls,
-                                               exam_type)
+                img_number = process_image(p, question_id, number_in_group, img_number, img_paths, img_urls,
+                                           exam_type)
 
             if in_list:
                 problem_html += '</ul>'
