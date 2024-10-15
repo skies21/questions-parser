@@ -274,6 +274,19 @@ def process_table_content(table_soup):
     return table_soup
 
 
+def clean_empty_paragraphs(html):
+    soup = BeautifulSoup(html, 'html.parser')
+
+    # Найдем все теги <p>
+    for p in soup.find_all('p'):
+        # Если в теге только пробелы или он пустой, удаляем его
+        if not p.get_text(strip=True):
+            p.decompose()
+
+    # Возвращаем очищенный HTML
+    return str(soup)
+
+
 def find_and_extract_tables(question):
     tables_to_move = []
     bs = question.find_all('b')  # Ищем все <b> теги в вопросе
@@ -569,6 +582,7 @@ def parse(request):
             problem_html = clean_problem_text(problem_html)
             problem_html = remove_math_prefix(problem_html)
             problem_html = clean_problem_char(problem_html)
+            problem_html = clean_empty_paragraphs(problem_html)
             question_text_combined = clean_problem_char(question_text_combined)
 
             new_data = {
