@@ -486,6 +486,9 @@ def parse(request):
             if in_list:
                 problem_html += '</ul>'
 
+            problem_html = append_tables_if_not_exist(problem_html, tables_to_move)
+            problem_html = remove_duplicate_tables(problem_html)
+
             # Обработка скриптов с картинками
             if tables_to_move:
                 correspond_table_soup = BeautifulSoup(problem_html, 'html.parser')
@@ -535,9 +538,6 @@ def parse(request):
 
                     # Удаляем тег скрипта после обработки
                     script.extract()
-
-            problem_html = append_tables_if_not_exist(problem_html, tables_to_move)
-            problem_html = remove_duplicate_tables(problem_html)
 
             question_text = [p.get_text(strip=True) for p in p_elements] if p_elements else [""]
             question_text_combined = "; ".join(question_text)
