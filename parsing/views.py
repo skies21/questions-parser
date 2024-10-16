@@ -401,13 +401,6 @@ def parse(request):
 
             hint = question.find_next('div', class_='hint').get_text(strip=True)
 
-            answer_table = question.find('table', class_='answer-table')
-            if answer_table:
-                for tag in answer_table.find_all(True):
-                    tag.attrs = {key: value for key, value in tag.attrs.items() if
-                                 key not in ['class', 'style']}
-                problem_html += str(answer_table)
-
             distractors_table = question.find('table', class_='distractors-table')
             if distractors_table:
                 for tag in distractors_table.find_all(True):
