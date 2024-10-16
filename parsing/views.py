@@ -545,6 +545,7 @@ def parse(request):
             problem_html = remove_math_prefix(problem_html)
             problem_html = clean_problem_char(problem_html)
             problem_html = clean_empty_paragraphs(problem_html)
+            problem_html.replace('1 м ? 1 м', '1 м × 1 м')
             question_text_combined = clean_problem_char(question_text_combined)
 
             new_data = {
