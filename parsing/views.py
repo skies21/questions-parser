@@ -276,6 +276,8 @@ def clean_empty_paragraphs(html):
 
     # Найдем все теги <p>
     for p in soup.find_all('p'):
+        if p.find('img'):
+            continue
         # Если в теге только пробелы или он пустой, удаляем его
         if not p.get_text(strip=True):
             p.decompose()
