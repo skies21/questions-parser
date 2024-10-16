@@ -319,7 +319,7 @@ def find_and_extract_tables(question):
         'border': '1',
         'cellspacing': '0',
         'cellpadding': '0',
-        'width': '100%'
+        'width': re.compile(r'\d+%'),
     })
     for table in specific_tables:
         if table not in tables_to_move:
