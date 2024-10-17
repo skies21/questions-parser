@@ -388,6 +388,11 @@ def append_tables_if_not_exist(problem_html, tables_to_move):
     return problem_html
 
 
+def get_script_tags(problem_html):
+    soup = BeautifulSoup(problem_html, 'html.parser')
+    return soup.find_all('script')
+
+
 def parse(request):
     bank_type = request.GET.get('bank')
     exam_type = 'ege' if 'ege' in bank_type else 'oge'
@@ -513,6 +518,8 @@ def parse(request):
                 script_tags = correspond_table_soup.find_all('script')
             else:
                 script_tags = question.find_all('script')
+
+            script_tags += get_script_tags(problem_html)
 
             # Инициализируем переменную для хранения files_abs_location
             files_abs_location = None
