@@ -184,7 +184,7 @@ def remove_duplicate_paragraphs(problem_html):
 
     # Проверяем параграфы и удаляем их, если текст совпадает с текстом в таблице
     for p in soup.find_all('p'):
-        if p.get_text(strip=True) in table_texts:
+        if p.get_text(strip=True) in table_texts and not p.find_parent('table'):
             p.decompose()  # Удаляем параграф, если текст совпадает
 
     # Возвращаем обработанный HTML
