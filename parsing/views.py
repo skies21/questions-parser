@@ -70,7 +70,19 @@ def process_table(p, problem_html):
 
     if table:
         for tag in table.find_all(True):
+            # Очистка атрибутов всех тегов от class и style
             tag.attrs = {key: value for key, value in tag.attrs.items() if key not in ['class', 'style']}
+
+            # Обработка тегов <td>
+            if tag.name == 'td':
+                # Проверяем наличие атрибута width
+                width = tag.get('width')
+                if width:
+                    # Если width абсолютный (без символа '%'), удаляем его
+                    if '%' not in width:
+                        del tag.attrs['width']
+
+        # Добавляем очищенную таблицу в problem_html
         problem_html += str(table)
 
     return problem_html
