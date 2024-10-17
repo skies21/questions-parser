@@ -167,7 +167,7 @@ def remove_non_radio_duplicate_images(problem_html):
 
 def clean_problem_text(problem_html):
     cleaned_problem = problem_html.replace('xml:namespace prefix = m ns = "http://www.w3.org/1998/Math/MathML" /', '')
-    cleaned_problem = cleaned_problem.replace('import namespace = m urn = " http://www.w3.org/1998/Math/MathML " implementation = "#MathPlayer" declareNamespace /', '')
+    cleaned_problem = re.sub(r'import namespace\s*=\s*m.*?MathPlayer.*?declareNamespace\s*/', '', cleaned_problem)
     return cleaned_problem
 
 
