@@ -419,9 +419,6 @@ def parse(request):
             img_paths = []
             img_urls = []
 
-            # Ищем и вырезаем таблицы соответствий и ответов
-            tables_to_move = find_and_extract_tables(question)
-
             hint = question.find_next('div', class_='hint').get_text(strip=True)
 
             distractors_table = question.find('table', class_='distractors-table')
@@ -495,12 +492,16 @@ def parse(request):
                         in_list = False
 
                     problem_html = process_table(p, problem_html)
+                    p.find_parent('table').decompose()  # Удаляем таблицу из дерева DOM
 
                 img_number = process_image(p, question_id, number_in_group, img_number, img_paths, img_urls,
                                            exam_type)
 
             if in_list:
                 problem_html += '</ul>'
+
+            # Ищем и вырезаем таблицы соответствий и ответов
+            tables_to_move = find_and_extract_tables(question)
 
             problem_html = append_tables_if_not_exist(problem_html, tables_to_move)
             problem_html = remove_duplicate_tables(problem_html)
