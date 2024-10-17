@@ -298,6 +298,15 @@ def clean_empty_paragraphs(html):
     return str(soup)
 
 
+def replace_dimensions(problem_html):
+    pattern = r'1\s*м\s*[?]\s*1\s*м'
+
+    # Замена с учётом регистра и пробелов
+    result = re.sub(pattern, '1 м × 1 м', problem_html, flags=re.IGNORECASE)
+
+    return result
+
+
 def find_and_extract_tables(question):
     tables_to_move = []
     bs = question.find_all('b')  # Ищем все <b> теги в вопросе
@@ -557,8 +566,9 @@ def parse(request):
             problem_html = remove_math_prefix(problem_html)
             problem_html = clean_problem_char(problem_html)
             problem_html = clean_empty_paragraphs(problem_html)
-            problem_html.replace('1 м ? 1 м', '1 м × 1 м')
+            problem_html = replace_dimensions(problem_html)
             question_text_combined = clean_problem_char(question_text_combined)
+            question_text_combined = replace_dimensions(question_text_combined)
 
             new_data = {
                 "id": question_id,
