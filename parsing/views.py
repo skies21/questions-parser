@@ -175,18 +175,19 @@ def remove_duplicate_paragraphs(problem_html):
     # Парсим HTML-код
     soup = BeautifulSoup(problem_html, 'html.parser')
 
-    # Найдем таблицу с радиокнопками
-    radio_table = soup.find('table', class_='distractors-table')
+    # Собираем тексты всех ячеек в таблицах
+    table_texts = set()
+    for table in soup.find_all('table'):
+        for row in table.find_all('tr'):
+            for cell in row.find_all(['td', 'th']):
+                table_texts.add(cell.get_text(strip=True))  # Сохраняем текст ячеек
 
-    if radio_table:
-        # Собираем тексты всех <p> элементов внутри таблицы
-        table_p_texts = [p_element.get_text(strip=True) for p_element in radio_table.find_all('p')]
+    # Проверяем параграфы и удаляем их, если текст совпадает с текстом в таблице
+    for p in soup.find_all('p'):
+        if p.get_text(strip=True) in table_texts:
+            p.decompose()  # Удаляем параграф, если текст совпадает
 
-        # Удаляем <p> теги вне таблицы, если текст совпадает с любым из текстов в таблице
-        for p_element in soup.find_all('p'):
-            if p_element.get_text(strip=True) in table_p_texts and p_element.find_parent('table') is None:
-                p_element.decompose()
-
+    # Возвращаем обработанный HTML
     return str(soup)
 
 
