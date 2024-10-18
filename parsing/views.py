@@ -73,15 +73,6 @@ def process_table(p, problem_html):
             # Очистка атрибутов всех тегов от class и style
             tag.attrs = {key: value for key, value in tag.attrs.items() if key not in ['class', 'style']}
 
-            # Обработка тегов <td>
-            if tag.name == 'td':
-                # Проверяем наличие атрибута width
-                width = tag.get('width')
-                if width:
-                    # Если width абсолютный (без символа '%'), удаляем его
-                    if '%' not in width:
-                        del tag.attrs['width']
-
         # Добавляем очищенную таблицу в problem_html
         problem_html += str(table)
 
@@ -424,6 +415,14 @@ def parse(request):
             problem_html = ""
             img_paths = []
             img_urls = []
+
+            # Обработка тегов <td>
+            for table in question.find_all('table'):
+                width = table.get('width')
+                if width:
+                    # Если width абсолютный (без символа '%'), удаляем его
+                    if '%' not in width:
+                        del table.attrs['width']
 
             hint = question.find_next('div', class_='hint').get_text(strip=True)
 
