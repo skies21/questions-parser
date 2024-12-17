@@ -384,6 +384,13 @@ def get_script_tags(problem_html):
     return soup.find_all('script')
 
 
+def extract_hidden_guid(soup_content):
+    input_tag = soup_content.find('input', {'type': 'Hidden', 'name': 'guid'})
+    if input_tag and 'value' in input_tag.attrs:
+        return input_tag['value']
+    return None
+
+
 def parse(request):
     bank_type = request.GET.get('bank')
     exam_type = 'ege' if 'ege' in bank_type else 'oge'
@@ -425,6 +432,7 @@ def parse(request):
                         del table.attrs['width']
 
             hint = question.find_next('div', class_='hint').get_text(strip=True)
+            guid = extract_hidden_guid(question)
 
             distractors_table = question.find('table', class_='distractors-table')
             if distractors_table:
@@ -580,6 +588,7 @@ def parse(request):
 
             new_data = {
                 "id": question_id,
+                "guid": guid,
                 "hint": hint,
                 "codifier": codifiers,
                 "question": question_text_combined,
