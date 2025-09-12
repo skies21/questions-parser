@@ -427,6 +427,15 @@ def parse(request):
             problem_html = ""
             img_paths = []
             img_urls = []
+            audio_urls = []
+
+            script_tag = question.find('script', string=re.compile(r"ShowPictureQ2WH"))
+            if script_tag:
+                audio_match = re.search(r"ShowPictureQ2WH\(['\"](.*?)['\"]", script_tag.string)
+                if audio_match:
+                    audio_src = audio_match.group(1)
+                    audio_url = f"https://{exam_type}.fipi.ru/{audio_src}"
+                    audio_urls.append(audio_url)
 
             # Обработка тегов <td>
             for table in question.find_all('table'):
@@ -600,6 +609,7 @@ def parse(request):
                 "problem": problem_html,
                 "img": img_paths,
                 "img_urls": img_urls,
+                "audio_urls": audio_urls,
                 "number_in_group": number_in_group,
                 "answer_type": answer_type,
                 "answer": "",
