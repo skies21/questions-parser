@@ -409,20 +409,35 @@ def parse(request):
     q_count = int(match.group(1))
     processed_questions = 0
     parsed_data = []
+    total_questions_processed = 0
+    processed_question_ids = set()
+    print(f"Tasks found: {q_count}")
 
-    while q_count > 0:
+    while True:
         soup = BeautifulSoup(response.text, 'html.parser')
         for span in soup.find_all('span'):
             span.unwrap()
 
         questions = soup.find_all('div', class_='qblock')
 
+        if len(questions) == 0:
+            print("No more questions found. Exiting.")
+            break
+
+        new_questions_found = False
+
         for question in questions:
             processed_questions += 1
-            progress = (processed_questions / q_count) * 100
-            print(f"\rProgress: {progress:.2f}%", end="")
 
             question_id = question.get('id')[1:] if question.get('id') else ""
+
+            if question_id in processed_question_ids:
+                continue
+
+            processed_questions += 1
+            total_questions_processed += 1
+            processed_question_ids.add(question_id)
+
             img_number = 0
             problem_html = ""
             img_paths = []
@@ -622,13 +637,17 @@ def parse(request):
             else:
                 parsed_data.append(new_data)
 
-        q_count -= len(questions)
-        if q_count <= 0:
+            new_questions_found = True
+
+        if not new_questions_found:
+            print("No new questions found. Exiting.")
             break
 
         response = next(resp_gen)
         if response.status_code != 200:
             return JsonResponse({'error': 'Failed to fetch data from the source'}, status=500)
+
+        print(f"Total questions processed: {total_questions_processed}")
 
     response = HttpResponse(
         json.dumps(parsed_data, ensure_ascii=False, indent=4),
