@@ -410,6 +410,7 @@ def parse(request):
     processed_questions = 0
     parsed_data = []
     total_questions_processed = 0
+    first_question_id = None
     processed_question_ids = set()
     print(f"Tasks found: {q_count}")
 
@@ -431,8 +432,13 @@ def parse(request):
 
             question_id = question.get('id')[1:] if question.get('id') else ""
 
-            if question_id in processed_question_ids:
-                continue
+            if first_question_id is None:
+                first_question_id = question_id
+                print(f"First question ID: {first_question_id}")
+
+            elif question_id == first_question_id:
+                print(f"First question ID {first_question_id} found again. Exiting.")
+                break
 
             processed_questions += 1
             total_questions_processed += 1
@@ -494,7 +500,6 @@ def parse(request):
                 # Получаем текст из найденного элемента
                 number_in_group = number_in_group_tag.get_text(strip=True) if number_in_group_tag else ""
                 if not answer_type and not question_id and number_in_group:
-                    q_count += 1
                     number_in_group = re.sub(r'^\S+', '0', number_in_group, count=1)
 
             p_elements = question.find_all('p')
