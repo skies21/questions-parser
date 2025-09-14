@@ -502,6 +502,9 @@ def parse(request):
                 if not answer_type and not question_id and number_in_group:
                     number_in_group = re.sub(r'^\S+', '0', number_in_group, count=1)
 
+            if question_id == "":
+                answer_type = ""
+
             p_elements = question.find_all('p')
             span_elements = question.find_all('span')
             elements = p_elements if p_elements else span_elements
