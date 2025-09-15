@@ -480,6 +480,10 @@ def parse(request):
             codifiers = []
             answer_type = question.find_next('td', class_='param-name').find_next().get_text(strip=True)
             number_in_group = ""
+
+            if question_id == "":
+                answer_type = ""
+
             if next_td:
                 next_td_row = next_td.find('td', class_='param-row')
                 if next_td_row:
@@ -497,13 +501,13 @@ def parse(request):
                 if not number_in_group_tag and not question_id:
                     number_in_group_tag = next_td.find_next('div', class_='number-in-group')
 
+                if question_id == "":
+                    answer_type = ""
+
                 # Получаем текст из найденного элемента
                 number_in_group = number_in_group_tag.get_text(strip=True) if number_in_group_tag else ""
                 if not answer_type and not question_id and number_in_group:
                     number_in_group = re.sub(r'^\S+', '0', number_in_group, count=1)
-
-            if question_id == "":
-                answer_type = ""
 
             p_elements = question.find_all('p')
             span_elements = question.find_all('span')
