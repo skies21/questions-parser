@@ -31,7 +31,8 @@ projects = {
     "math_ege_base": "E040A72A1A3DABA14C90C97E0B6EE7DC",
     "math_oge": "DE0E276E497AB3784C3FC4CC20248DC0",
     "eng_oge": "8BBD5C99F37898B6402964AB11955663",
-    "eng_ege": "4B53A6CB75B0B5E1427E596EB4931A2A"
+    "eng_ege": "4B53A6CB75B0B5E1427E596EB4931A2A",
+    "rus_ege": "AF0ED3F2557F8FFC4C06F80B6803FD26",
 }
 
 q_count_re = re.compile(r"window\.parent\.setQCount\((\d+)\)")
@@ -391,6 +392,36 @@ def extract_hidden_guid(soup_content):
     return None
 
 
+def normalize_word_html(soup):
+    tag_factory = BeautifulSoup("", "html.parser")
+
+    for a in soup.find_all('a', attrs={'name': '_GoBack'}):
+        a.decompose()
+
+    for td in soup.find_all('td'):
+        paragraphs = td.find_all('p', recursive=False)
+        if not paragraphs:
+            continue
+
+        texts = []
+        for p in paragraphs:
+            text = p.get_text(" ", strip=True)
+            if text:
+                texts.append(text)
+            p.decompose()
+
+        if texts:
+            new_p = tag_factory.new_tag('p')
+            new_p.string = ' '.join(texts)
+            td.append(new_p)
+
+    for p in soup.find_all('p'):
+        if not p.get_text(strip=True):
+            p.decompose()
+
+    return soup
+
+
 def parse(request):
     bank_type = request.GET.get('bank')
     exam_type = 'ege' if 'ege' in bank_type else 'oge'
@@ -428,6 +459,8 @@ def parse(request):
         new_questions_found = False
 
         for question in questions:
+            question = normalize_word_html(question)
+
             processed_questions += 1
 
             question_id = question.get('id')[1:] if question.get('id') else ""
