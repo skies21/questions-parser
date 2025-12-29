@@ -405,9 +405,13 @@ def normalize_word_html(soup):
 
         texts = []
         for p in paragraphs:
+            if p.find(['script', 'img', 'object', 'embed']):
+                continue
+
             text = p.get_text(" ", strip=True)
             if text:
                 texts.append(text)
+
             p.decompose()
 
         if texts:
@@ -416,7 +420,7 @@ def normalize_word_html(soup):
             td.append(new_p)
 
     for p in soup.find_all('p'):
-        if not p.get_text(strip=True):
+        if not p.get_text(strip=True) and not p.find(['script', 'img']):
             p.decompose()
 
     return soup
