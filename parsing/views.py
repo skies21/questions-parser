@@ -33,6 +33,7 @@ projects = {
     "eng_oge": "8BBD5C99F37898B6402964AB11955663",
     "eng_ege": "4B53A6CB75B0B5E1427E596EB4931A2A",
     "rus_ege": "AF0ED3F2557F8FFC4C06F80B6803FD26",
+    "inf_oge": "74676951F093A0754D74F2D6E7955F06",
 }
 
 q_count_re = re.compile(r"window\.parent\.setQCount\((\d+)\)")
@@ -426,6 +427,34 @@ def normalize_word_html(soup):
     return soup
 
 
+def extract_file_urls(question, exam_type):
+    file_urls = []
+
+    for script_tag in question.find_all('script'):
+        if not script_tag.string:
+            continue
+
+        if 'ShowPictureQ2WH' not in script_tag.string:
+            continue
+
+        match = re.search(
+            r"ShowPictureQ2WH\(\s*['\"]([^'\"]+)['\"]",
+            script_tag.string
+        )
+        if not match:
+            continue
+
+        file_path = match.group(1)
+
+        if not file_path.lower().endswith(('.zip', '.rar', '.7z', '.doc', '.docx', '.pdf')):
+            continue
+
+        file_url = f"https://{exam_type}.fipi.ru/{file_path}"
+        file_urls.append(file_url)
+
+    return file_urls
+
+
 def parse(request):
     bank_type = request.GET.get('bank')
     exam_type = 'ege' if 'ege' in bank_type else 'oge'
@@ -486,6 +515,7 @@ def parse(request):
             img_paths = []
             img_urls = []
             audio_urls = []
+            file_urls = []
 
             script_tag = question.find('script', string=re.compile(r"ShowPictureQ2WH"))
             if script_tag:
@@ -494,6 +524,8 @@ def parse(request):
                     audio_src = audio_match.group(1)
                     audio_url = f"https://{exam_type}.fipi.ru/{audio_src}"
                     audio_urls.append(audio_url)
+
+            file_urls.extend(extract_file_urls(question, exam_type))
 
             # Обработка тегов <td>
             for table in question.find_all('table'):
@@ -673,6 +705,7 @@ def parse(request):
                 "problem": problem_html,
                 "img": img_paths,
                 "img_urls": img_urls,
+                "file_urls": file_urls,
                 "audio_urls": audio_urls,
                 "number_in_group": number_in_group,
                 "answer_type": answer_type,
