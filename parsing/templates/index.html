@@ -12,13 +12,14 @@
         <form id="parse-form">
             <label for="bank-select" class="form-label">Выберите банк вопросов:</label>
             <select id="bank-select" class="form-select mb-3">
-                <option value="math_ege_profil">Математика ЕГЭ. Профильный уровень</option>
-                <option value="math_ege_base">Математика ЕГЭ. Базовый уровень</option>
-                <option value="math_oge">Математика ОГЭ</option>
-                <option value="eng_oge">Английский ОГЭ</option>
-                <option value="eng_ege">Английский ЕГЭ</option>
-                <option value="rus_ege">Русский ЕГЭ</option>
-                <option value="inf_oge">Информатика ОГЭ</option>
+                {% regroup projects.items by 1.exam as grouped_projects %}
+                {% for group in grouped_projects %}
+                    <optgroup label="{% if group.grouper == 'ege' %}ЕГЭ{% else %}ОГЭ{% endif %}">
+                        {% for key, value in group.list %}
+                            <option value="{{ key }}">{{ value.name }}</option>
+                        {% endfor %}
+                    </optgroup>
+                {% endfor %}
             </select>
             <button type="submit" class="btn btn-primary">Парсить</button>
         </form>
