@@ -420,12 +420,21 @@ def process_table_content(table_soup):
     return table_soup
 
 
+def has_visual_content(tag):
+    visual_tag_names = {'img', 'svg', 'object', 'embed', 'canvas'}
+
+    if tag.find(visual_tag_names):
+        return True
+
+    return tag.find(lambda child: child.name and ':' in child.name) is not None
+
+
 def clean_empty_paragraphs(html):
     soup = BeautifulSoup(html, 'html.parser')
 
     # Найдем все теги <p>
     for p in soup.find_all('p'):
-        if p.find('img'):
+        if has_visual_content(p):
             continue
         # Если в теге только пробелы или он пустой, удаляем его
         if not p.get_text(strip=True):
@@ -549,7 +558,7 @@ def normalize_word_html(soup):
 
         texts = []
         for p in paragraphs:
-            if p.find(['script', 'img', 'object', 'embed']):
+            if p.find('script') or has_visual_content(p):
                 continue
 
             text = p.get_text(" ", strip=True)
@@ -564,7 +573,7 @@ def normalize_word_html(soup):
             td.append(new_p)
 
     for p in soup.find_all('p'):
-        if not p.get_text(strip=True) and not p.find(['script', 'img']):
+        if not p.get_text(strip=True) and not p.find('script') and not has_visual_content(p):
             p.decompose()
 
     return soup
