@@ -230,6 +230,9 @@ def process_image(p, question_id, number_in_group, img_number, img_paths, img_ur
     if img_tag and img_tag.get('src'):
         # Извлекаем расширение из src
         img_src = img_tag['src']
+        local_img_prefixes = [prefix for prefix in (question_id, number_in_group) if prefix]
+        if any(re.match(rf"^{re.escape(prefix)}/\d+\.[^/]+$", img_src) for prefix in local_img_prefixes):
+            return img_number
         img_extension = os.path.splitext(img_src)[1]  # Получаем расширение файла (например, '.gif', '.png')
 
         # Формируем путь для сохранения изображения с правильным расширением
@@ -245,6 +248,38 @@ def process_image(p, question_id, number_in_group, img_number, img_paths, img_ur
 
         # Увеличиваем счетчик изображений
         img_number += 1
+
+    return img_number
+
+
+def replace_picture_scripts_with_images(container, question_id, number_in_group, img_number, img_paths, img_urls,
+                                        exam_type, files_abs_location=None):
+    tag_factory = BeautifulSoup("", "html.parser")
+
+    for script in container.find_all('script'):
+        if not script.string or not re.search(r"ShowPictureQ|ShowPicture", script.string):
+            continue
+
+        img_matches = re.findall(r"ShowPicture(Q)?\(['\"](.*?)['\"]", script.string)
+        if not img_matches:
+            continue
+
+        for _, raw_img_src in img_matches:
+            img_src = f"{files_abs_location}{raw_img_src}" if files_abs_location else raw_img_src
+            img_url = f"https://{exam_type}.fipi.ru/{img_src}"
+            img_urls.append(img_url)
+
+            img_extension = os.path.splitext(img_src)[1]
+            img_file_path = (
+                f"{question_id}/{img_number}{img_extension}" if question_id else f"{number_in_group}/{img_number}{img_extension}"
+            )
+            img_paths.append(img_file_path)
+
+            img_tag = tag_factory.new_tag('img', src=img_file_path)
+            script.insert_before(img_tag)
+            img_number += 1
+
+        script.decompose()
 
     return img_number
 
@@ -674,6 +709,7 @@ def parse(request):
             img_urls = []
             audio_urls = []
             file_urls = []
+            number_in_group = ""
 
             script_tag = question.find('script', string=re.compile(r"ShowPictureQ2WH"))
             if script_tag:
@@ -684,6 +720,24 @@ def parse(request):
                     audio_urls.append(audio_url)
 
             file_urls.extend(extract_file_urls(question, exam_type))
+
+            files_abs_location = None
+            for script in question.find_all('script'):
+                if script.string and re.search(r"files_abs_location", script.string):
+                    files_abs_match = re.search(r"files_abs_location=['\"](.*?)['\"];", script.string)
+                    if files_abs_match:
+                        files_abs_location = files_abs_match.group(1)
+
+            img_number = replace_picture_scripts_with_images(
+                question,
+                question_id,
+                number_in_group,
+                img_number,
+                img_paths,
+                img_urls,
+                exam_type,
+                files_abs_location=files_abs_location,
+            )
 
             # Обработка тегов <td>
             for table in question.find_all('table'):
