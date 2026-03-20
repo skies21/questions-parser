@@ -284,6 +284,65 @@ def replace_picture_scripts_with_images(container, question_id, number_in_group,
     return img_number
 
 
+def build_problem_html(question, question_id, number_in_group, img_number, img_paths, img_urls, exam_type):
+    problem_html = ""
+    p_elements = question.find_all('p')
+    span_elements = question.find_all('span')
+    elements = question.find_all(['p', 'img']) if p_elements else question.find_all(['span', 'img'])
+
+    in_list = False
+
+    for element in elements:
+        if element.find_parent('table', class_='distractors-table') or element.find_parent(
+            'table', class_='answer-table'
+        ):
+            continue
+
+        if element.name == 'img':
+            if element.find_parent('p') or element.find_parent('table'):
+                continue
+
+            if in_list:
+                problem_html += '</ul>'
+                in_list = False
+
+            problem_html += f'<p>{str(element)}</p>'
+            continue
+
+        if not element.find_parent('table', class_='MsoNormalTable') and not element.find_parent(
+            'table', class_='MsoTableGrid'
+        ):
+            text = element.get_text()
+            if text.startswith('В·'):
+                if not in_list:
+                    problem_html += '<ul>'
+                    in_list = True
+
+                problem_html += f'<li>{text.replace("В·", "").strip()}</li>'
+
+            else:
+                if in_list:
+                    problem_html += '</ul>'
+                    in_list = False
+
+                problem_html += '<p>' + ''.join([str(child) for child in element.children]) + '</p>'
+
+        else:
+            if in_list:
+                problem_html += '</ul>'
+                in_list = False
+
+            problem_html = process_table(element, problem_html)
+            element.find_parent('table').decompose()
+
+        img_number = process_image(element, question_id, number_in_group, img_number, img_paths, img_urls, exam_type)
+
+    if in_list:
+        problem_html += '</ul>'
+
+    return problem_html, img_number
+
+
 def move_tables_to_end(problem_html):
     # Парсим HTML
     soup = BeautifulSoup(problem_html, 'html.parser')
@@ -315,6 +374,30 @@ def move_tables_to_end(problem_html):
     updated_problem_html = remaining_content + ''.join(tables_to_move)
 
     return updated_problem_html
+
+
+def insert_missing_problem_images(problem_html, img_paths):
+    if not img_paths:
+        return problem_html
+
+    soup = BeautifulSoup(problem_html, 'html.parser')
+    existing_srcs = {img.get('src') for img in soup.find_all('img') if img.get('src')}
+    missing_paths = [img_path for img_path in img_paths if img_path not in existing_srcs]
+
+    if not missing_paths:
+        return problem_html
+
+    insert_before = soup.find('table', class_='distractors-table') or soup.find('table', class_='answer-table')
+
+    for img_path in missing_paths:
+        paragraph = soup.new_tag('p')
+        paragraph.append(soup.new_tag('img', src=img_path))
+        if insert_before:
+            insert_before.insert_before(paragraph)
+        else:
+            soup.append(paragraph)
+
+    return str(soup)
 
 
 def remove_non_radio_duplicate_images(problem_html):
@@ -355,6 +438,8 @@ def remove_duplicate_paragraphs(problem_html):
 
     # Проверяем параграфы и удаляем их, если текст совпадает с текстом в таблице
     for p in soup.find_all('p'):
+        if has_visual_content(p):
+            continue
         if p.get_text(strip=True) in table_texts and not p.find_parent('table'):
             p.decompose()  # Удаляем параграф, если текст совпадает
 
@@ -791,12 +876,20 @@ def parse(request):
                     number_in_group = re.sub(r'^\S+', '0', number_in_group, count=1)
 
             p_elements = question.find_all('p')
-            span_elements = question.find_all('span')
-            elements = p_elements if p_elements else span_elements
+            content_html, img_number = build_problem_html(
+                question,
+                question_id,
+                number_in_group,
+                img_number,
+                img_paths,
+                img_urls,
+                exam_type,
+            )
+            problem_html += content_html
 
             in_list = False
 
-            for p in elements:
+            for p in []:
                 # Проверяем, является ли элемент параграфом задания или частью таблицы ответов
                 if not p.find_parent('table', class_='MsoNormalTable') and not p.find_parent('table',
                                                                                              class_='MsoTableGrid'):
@@ -896,6 +989,7 @@ def parse(request):
             question_text = [p.get_text(strip=True) for p in p_elements] if p_elements else [""]
             question_text_combined = "; ".join(question_text)
 
+            problem_html = insert_missing_problem_images(problem_html, img_paths)
             problem_html = re.sub(r'<script.*?>.*?</script>', '', problem_html, flags=re.DOTALL)
             problem_html = move_tables_to_end(problem_html)
             problem_html = remove_non_radio_duplicate_images(problem_html)
