@@ -989,9 +989,9 @@ def parse(request):
             question_text = [p.get_text(strip=True) for p in p_elements] if p_elements else [""]
             question_text_combined = "; ".join(question_text)
 
-            problem_html = insert_missing_problem_images(problem_html, img_paths)
             problem_html = re.sub(r'<script.*?>.*?</script>', '', problem_html, flags=re.DOTALL)
             problem_html = move_tables_to_end(problem_html)
+            problem_html = insert_missing_problem_images(problem_html, img_paths)
             problem_html = remove_non_radio_duplicate_images(problem_html)
             problem_html = remove_duplicate_paragraphs(problem_html)
             problem_html = clean_problem_text(problem_html)
