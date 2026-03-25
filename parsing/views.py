@@ -284,6 +284,28 @@ def replace_picture_scripts_with_images(container, question_id, number_in_group,
     return img_number
 
 
+def should_defer_table_content(table):
+    if not table:
+        return False
+
+    if table.get('class') and any(cls in {'distractors-table', 'answer-table'} for cls in table.get('class', [])):
+        return True
+
+    if len(table.find_all('u')) >= 2:
+        return True
+
+    width = table.get('width', '')
+    if (
+        table.get('border') == '1'
+        and table.get('cellspacing') == '0'
+        and table.get('cellpadding') == '0'
+        and re.fullmatch(r'\d+%', str(width))
+    ):
+        return True
+
+    return False
+
+
 def build_problem_html(question, question_id, number_in_group, img_number, img_paths, img_urls, exam_type):
     problem_html = ""
     p_elements = question.find_all('p')
@@ -293,9 +315,9 @@ def build_problem_html(question, question_id, number_in_group, img_number, img_p
     in_list = False
 
     for element in elements:
-        if element.find_parent('table', class_='distractors-table') or element.find_parent(
-            'table', class_='answer-table'
-        ):
+        parent_table = element.find_parent('table')
+
+        if parent_table and should_defer_table_content(parent_table):
             continue
 
         if element.name == 'img':
@@ -429,18 +451,37 @@ def remove_duplicate_paragraphs(problem_html):
     # Парсим HTML-код
     soup = BeautifulSoup(problem_html, 'html.parser')
 
-    # Собираем тексты всех ячеек в таблицах
+    def normalize_text(text):
+        return re.sub(r'\s+', ' ', text).strip()
+
+    def normalize_fragment(fragment_html):
+        fragment_html = re.sub(r'\bm:', '', fragment_html)
+        return re.sub(r'\s+', ' ', fragment_html).strip()
+
+    # Собираем тексты и HTML всех ячеек в таблицах
     table_texts = set()
+    table_fragments = set()
     for table in soup.find_all('table'):
         for row in table.find_all('tr'):
             for cell in row.find_all(['td', 'th']):
                 table_texts.add(cell.get_text(strip=True))  # Сохраняем текст ячеек
+                table_texts.add(normalize_text(cell.get_text(strip=True)))
+                cell_inner_html = ''.join(str(child) for child in cell.contents)
+                if cell_inner_html:
+                    table_fragments.add(normalize_fragment(cell_inner_html))
 
     # Проверяем параграфы и удаляем их, если текст совпадает с текстом в таблице
     for p in soup.find_all('p'):
         if has_visual_content(p):
+            paragraph_fragment = normalize_fragment(''.join(str(child) for child in p.contents))
+            paragraph_text = normalize_text(p.get_text(strip=True))
+            if (
+                (paragraph_fragment in table_fragments or (paragraph_text and paragraph_text in table_texts))
+                and not p.find_parent('table')
+            ):
+                p.decompose()
             continue
-        if p.get_text(strip=True) in table_texts and not p.find_parent('table'):
+        if normalize_text(p.get_text(strip=True)) in table_texts and not p.find_parent('table'):
             p.decompose()  # Удаляем параграф, если текст совпадает
 
     # Возвращаем обработанный HTML
@@ -541,7 +582,7 @@ def process_table_content(table_soup):
 
 
 def has_visual_content(tag):
-    visual_tag_names = {'img', 'svg', 'object', 'embed', 'canvas'}
+    visual_tag_names = {'img', 'svg', 'object', 'embed', 'canvas', 'math'}
 
     if tag.find(visual_tag_names):
         return True
@@ -993,9 +1034,9 @@ def parse(request):
             problem_html = move_tables_to_end(problem_html)
             problem_html = insert_missing_problem_images(problem_html, img_paths)
             problem_html = remove_non_radio_duplicate_images(problem_html)
-            problem_html = remove_duplicate_paragraphs(problem_html)
             problem_html = clean_problem_text(problem_html)
             problem_html = remove_math_prefix(problem_html)
+            problem_html = remove_duplicate_paragraphs(problem_html)
             problem_html = clean_problem_char(problem_html)
             problem_html = clean_empty_paragraphs(problem_html)
             problem_html = replace_dimensions(problem_html)
