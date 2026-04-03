@@ -706,6 +706,39 @@ def extract_hidden_guid(soup_content):
     return None
 
 
+def extract_question_context(question, question_id):
+    next_td = question.find_next_sibling('div')
+    codifiers = []
+    answer_type = question.find_next('td', class_='param-name').find_next().get_text(strip=True)
+    number_in_group = ""
+
+    if question_id == "":
+        answer_type = ""
+
+    if next_td:
+        next_td_row = next_td.find('td', class_='param-row')
+        if next_td_row:
+            codifier_elements = next_td_row.find_all()
+            for codifier_element in codifier_elements:
+                codifier_text = codifier_element.get_text(strip=True)
+                if codifier_text:
+                    codifiers.append(codifier_text)
+            answer_type = next_td_row.find_next('td', class_='param-name').find_next().get_text(strip=True)
+
+        number_in_group_tag = next_td.find('div', class_='number-in-group')
+        if not number_in_group_tag and not question_id:
+            number_in_group_tag = next_td.find_next('div', class_='number-in-group')
+
+        if question_id == "":
+            answer_type = ""
+
+        number_in_group = number_in_group_tag.get_text(strip=True) if number_in_group_tag else ""
+        if not answer_type and not question_id and number_in_group:
+            number_in_group = re.sub(r'^\S+', '0', number_in_group, count=1)
+
+    return codifiers, answer_type, number_in_group
+
+
 def normalize_word_html(soup):
     tag_factory = BeautifulSoup("", "html.parser")
 
@@ -836,6 +869,7 @@ def parse(request):
             audio_urls = []
             file_urls = []
             number_in_group = ""
+            codifiers, answer_type, number_in_group = extract_question_context(question, question_id)
 
             script_tag = question.find('script', string=re.compile(r"ShowPictureQ2WH"))
             if script_tag:
@@ -882,39 +916,6 @@ def parse(request):
                     tag.attrs = {key: value for key, value in tag.attrs.items() if
                                  key not in ['class', 'style']}
                 problem_html += str(distractors_table)
-
-            next_td = question.find_next_sibling('div')
-            codifiers = []
-            answer_type = question.find_next('td', class_='param-name').find_next().get_text(strip=True)
-            number_in_group = ""
-
-            if question_id == "":
-                answer_type = ""
-
-            if next_td:
-                next_td_row = next_td.find('td', class_='param-row')
-                if next_td_row:
-                    codifier_elements = next_td_row.find_all()
-                    for codifier_element in codifier_elements:
-                        codifier_text = codifier_element.get_text(strip=True)
-                        if codifier_text:
-                            codifiers.append(codifier_text)
-                    answer_type = next_td_row.find_next('td', class_='param-name').find_next().get_text(strip=True)
-
-                # Ищем number_in_group в текущем элементе
-                number_in_group_tag = next_td.find('div', class_='number-in-group')
-
-                # Если не найдено, проверяем в следующем элементе, только если question_id не найден
-                if not number_in_group_tag and not question_id:
-                    number_in_group_tag = next_td.find_next('div', class_='number-in-group')
-
-                if question_id == "":
-                    answer_type = ""
-
-                # Получаем текст из найденного элемента
-                number_in_group = number_in_group_tag.get_text(strip=True) if number_in_group_tag else ""
-                if not answer_type and not question_id and number_in_group:
-                    number_in_group = re.sub(r'^\S+', '0', number_in_group, count=1)
 
             p_elements = question.find_all('p')
             content_html, img_number = build_problem_html(
@@ -976,13 +977,6 @@ def parse(request):
             problem_html = remove_duplicate_tables(problem_html)
 
             # Обработка скриптов с картинками
-            if tables_to_move:
-                correspond_table_soup = BeautifulSoup(problem_html, 'html.parser')
-                script_tags = correspond_table_soup.find_all('script')
-            else:
-                script_tags = question.find_all('script')
-
-            script_tags += get_script_tags(problem_html)
 
             # Инициализируем переменную для хранения files_abs_location
             files_abs_location = None
@@ -995,8 +989,8 @@ def parse(request):
                     if files_abs_match:
                         files_abs_location = files_abs_match.group(1)  # Сохраняем путь из скрипта
 
-            # Основная обработка скриптов ShowPicture и ShowPictureQ
-            for script in script_tags:
+            # Скрипты ShowPicture* уже заменены выше через replace_picture_scripts_with_images.
+            for script in ():
                 if script.string and re.search(r"ShowPictureQ|ShowPicture", script.string):
                     img_match = re.findall(r"ShowPicture(Q)?\(['\"](.*?)['\"]", script.string)
 
